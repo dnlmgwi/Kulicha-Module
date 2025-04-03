@@ -1,10 +1,27 @@
 using Kulicha.Components;
+using Kulicha.Services;
+// using Kulicha.Components; // Namespace for App
+// using SpacetimeDB; // Implicitly used by the service
+// using SpacetimeDB.Types; // Implicitly used by the service
+// using System.Collections.Concurrent; // Implicitly used by the service
+// using System.Threading; // Implicitly used by the service
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Add logging
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+// Register the SpacetimeDB background service
+builder.Services.AddHostedService<SpacetimeDbService>();
+
+// If you need to access the service (e.g., its input queue) from Blazor components,
+// register it as a singleton too. Be mindful of thread safety when accessing it.
+builder.Services.AddSingleton<SpacetimeDbService>(); // Allows injection
 
 var app = builder.Build();
 
@@ -12,16 +29,16 @@ var app = builder.Build();
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
 app.UseHttpsRedirection();
-
 app.UseStaticFiles();
 app.UseAntiforgery();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
-app.Run();
+Console.WriteLine("Starting Web Application...");
+app.Run(); // This will now block, while the SpacetimeDBService runs in the background
+Console.WriteLine("Web Application Stopped."); // This line executes on shutdown
