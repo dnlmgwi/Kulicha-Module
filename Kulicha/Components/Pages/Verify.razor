@@ -112,7 +112,7 @@
             }
 
             // Call the service method to verify the email
-            SpacetimeService.VerifyEmail(verifyModel.VerificationCode, verifyModel.Email);
+            SpacetimeService.VerifyAccount(verifyModel.VerificationCode);
 
             // Provide feedback to the user that the request was sent
             SuccessMessage = "Verification request sent. Processing...";
@@ -178,6 +178,6 @@
         [Required]
         [StringLength(6, MinimumLength = 6, ErrorMessage = "Verification code must be 6 characters")] // Assuming 6 char code
         [RegularExpression(@"^[a-zA-Z0-9]+$", ErrorMessage = "Verification code can only contain letters and numbers")]
-        public string VerificationCode { get; set; } = "A8RTTO";
+        public string VerificationCode { get; set; } = "9AJS6S";
     }
 }
