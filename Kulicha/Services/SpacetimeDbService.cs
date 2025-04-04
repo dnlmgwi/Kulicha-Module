@@ -21,6 +21,8 @@ public class SpacetimeDbService : IHostedService, IDisposable {
 
     public event Action<string>? OnVerifySuccess; // Event for successful registration
 
+    public event Action<string>? OnVerifyLoginSuccess; // Event for successful registration
+
 
         // ------------------------------------
 
@@ -155,16 +157,51 @@ public class SpacetimeDbService : IHostedService, IDisposable {
     private void ProcessLoop(DbConnection conn, CancellationToken ct)
     {
         _logger.LogInformation("SpacetimeDB processing loop started.");
+        DateTime lastConnectionAttempt = DateTime.MinValue;
         try
         {
             while (!ct.IsCancellationRequested)
             {
                 if (conn.IsActive) // Only call FrameTick if connected
                 {
-                    conn.FrameTick(); // Process incoming updates
+                    try
+                    {
+                        conn.FrameTick(); // Process incoming updates
+                        
+                        // If we were previously disconnected, update state
+                        if (!_isConnected)
+                        {
+                            _logger.LogInformation("Connection restored in processing loop.");
+                            _isConnected = true;
+                            OnConnect?.Invoke();
+                        }
+                    }
+                    catch (InvalidOperationException ioex)
+                    {
+                        // Connection might have been lost during FrameTick
+                        _logger.LogWarning(ioex, "Connection error during FrameTick.");
+                        _isConnected = false;
+                        OnDisconnect?.Invoke();
+                    }
                 }
-                // Removed ProcessCommands - reducer calls are now direct methods
-                Thread.Sleep(50); // Avoid busy-waiting
+                else if (!_isConnected && DateTime.Now - lastConnectionAttempt > TimeSpan.FromSeconds(10))
+                {
+                    // Try to reconnect every 10 seconds if not connected
+                    _logger.LogInformation("Attempting to reconnect in processing loop...");
+                    lastConnectionAttempt = DateTime.Now;
+                    try
+                    {
+                        // Attempt to reconnect without blocking the processing loop
+                        Task.Run(async () => await RetryConnection()).ConfigureAwait(false);
+                    }
+                    catch (Exception reconnectEx)
+                    {
+                        _logger.LogWarning(reconnectEx, "Failed to reconnect in processing loop.");
+                    }
+                }
+                
+                // Avoid busy-waiting
+                Thread.Sleep(50);
             }
         }
         catch (OperationCanceledException)
@@ -173,15 +210,10 @@ public class SpacetimeDbService : IHostedService, IDisposable {
         }
         catch (Exception ex)
         {
-            // Catch errors from FrameTick if the connection drops unexpectedly
-            if (!_isConnected && ex is InvalidOperationException)
-            {
-                _logger.LogWarning(ex, "SpacetimeDB connection lost during FrameTick (likely benign).");
-            }
-            else
-            {
-                _logger.LogInformation(ex, "Unhandled exception in SpacetimeDB processing loop.");
-            }
+            // Catch other unexpected errors
+            _logger.LogInformation(ex, "Unhandled exception in SpacetimeDB processing loop.");
+            _isConnected = false;
+            OnDisconnect?.Invoke();
         }
         finally
         {
@@ -190,6 +222,110 @@ public class SpacetimeDbService : IHostedService, IDisposable {
     }
 
     // --- Public Methods for Reducer Calls ---
+
+    /// <summary>
+    /// Requests a login verification code for an existing user's email
+    /// </summary>
+    /// <param name="email">The email address to send the verification code to</param>
+    public async void RequestLoginCode(string email)
+    {
+        // If not connected, attempt to establish connection first
+        if (!_isConnected || _conn == null)
+        {
+            _logger.LogInformation("Not connected to SpacetimeDB. Attempting to connect before registration.");
+            try
+            {
+                // Try to reconnect
+                await RetryConnection();
+
+                // Wait a moment for connection to establish
+                await Task.Delay(1000);
+
+                // If still not connected after retry, report error
+                if (!_isConnected || _conn == null)
+                {
+                    _logger.LogWarning("Cannot RequestLoginCoder: Connection retry failed.");
+                    OnErrorReceived?.Invoke("Connection", "Failed to connect to SpacetimeDB. Please try again.");
+                    return;
+                }
+            }
+            catch (Exception connEx)
+            {
+                _logger.LogInformation(connEx, "Error reconnecting to SpacetimeDB.");
+                OnErrorReceived?.Invoke("Connection", $"Connection error: {connEx.Message}");
+                return;
+            }
+        }
+
+        try
+        {
+            _logger.LogInformation("Calling RequestLoginCode reducer for email {Email}", email);
+            _conn.Reducers.RequestLoginCode(email);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error calling RequestLoginCode reducer.");
+            OnErrorReceived?.Invoke("ReducerCall", $"Failed to request login code: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Verifies a login using the provided verification code
+    /// </summary>
+    /// <param name="verificationCode">The verification code received via email</param>
+    /// <param name="deviceId">Optional device identifier, defaults to "web" if not provided</param>
+    public async void VerifyLogin(string verificationCode, string deviceId = "web")
+    {
+        // If not connected, attempt to establish connection first
+        if (!_isConnected || _conn == null)
+        {
+            _logger.LogInformation("Not connected to SpacetimeDB. Attempting to connect before registration.");
+            try
+            {
+                // Try to reconnect
+                await RetryConnection();
+
+                // Wait a moment for connection to establish
+                await Task.Delay(1000);
+
+                // If still not connected after retry, report error
+                if (!_isConnected || _conn == null)
+                {
+                    _logger.LogWarning("Cannot RegisterUser: Connection retry failed.");
+                    OnErrorReceived?.Invoke("Connection", "Failed to connect to SpacetimeDB. Please try again.");
+                    return;
+                }
+            }
+            catch (Exception connEx)
+            {
+                _logger.LogInformation(connEx, "Error reconnecting to SpacetimeDB.");
+                OnErrorReceived?.Invoke("Connection", $"Connection error: {connEx.Message}");
+                return;
+            }
+        }
+
+        try
+        {
+            _logger.LogInformation("Calling VerifyLogin reducer with code for device {DeviceId}", deviceId);
+            _conn.Reducers.VerifyLogin(verificationCode, deviceId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error calling VerifyLogin reducer.");
+            OnErrorReceived?.Invoke("ReducerCall", $"Failed to verify login: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Generate a device identifier based on browser information
+    /// </summary>
+    private string GenerateDeviceId()
+    {
+        // In a real implementation, this would use browser fingerprinting
+        // or a combination of user agent, screen resolution, etc.
+        // For simplicity, we'll just use a basic identifier here
+        return $"web-{DateTime.UtcNow.Ticks}";
+    }
 
     public async void RegisterUser(string username, string email, int role)
     {
@@ -233,18 +369,40 @@ public class SpacetimeDbService : IHostedService, IDisposable {
         }
     }
 
-    public void VerifyEmail(string code, string email)
+    public async void VerifyEmail(string code, string email)
     {
+        // If not connected, attempt to establish connection first
         if (!_isConnected || _conn == null)
         {
-            _logger.LogWarning("Cannot VerifyEmail: Not connected.");
-            OnErrorReceived?.Invoke("Connection", "Not connected to SpacetimeDB.");
-            return;
+            _logger.LogWarning("Not connected to SpacetimeDB. Attempting to connect before verification.");
+            try 
+            {
+                // Try to reconnect
+                await RetryConnection();
+                
+                // Wait a moment for connection to establish
+                await Task.Delay(1000);
+                
+                // If still not connected after retry, report error
+                if (!_isConnected || _conn == null)
+                {
+                    _logger.LogWarning("Cannot VerifyEmail: Connection retry failed.");
+                    OnErrorReceived?.Invoke("Connection", "Failed to connect to SpacetimeDB. Please try again.");
+                    return;
+                }
+            }
+            catch (Exception connEx)
+            {
+                _logger.LogInformation(connEx, "Error reconnecting to SpacetimeDB.");
+                OnErrorReceived?.Invoke("Connection", $"Connection error: {connEx.Message}");
+                return;
+            }
         }
+        
         try
         {
             _logger.LogInformation("Calling VerifyEmail reducer with code {Code}", code);
-            // Pass both the verification code and email
+            // Pass the verification code
             _conn.Reducers.VerifyEmail(code);
         }
         catch (Exception ex)
@@ -424,6 +582,8 @@ public class SpacetimeDbService : IHostedService, IDisposable {
         conn.Reducers.OnRegisterUser += OnRegisterUserCallback;
         conn.Reducers.OnVerifyEmail += OnVerifyEmailCallback;
         conn.Reducers.OnUpdateProfile += OnUpdateProfileCallback;
+        conn.Reducers.OnRequestLoginCode += OnRequestLoginCodeCallback;
+        conn.Reducers.OnVerifyLogin += OnVerifyLoginCallback;
         // Add other reducer callbacks if needed (e.g., OnListUsersByRole)
 
         _logger.LogInformation("Registered SpacetimeDB table and reducer callbacks.");
@@ -532,20 +692,42 @@ public class SpacetimeDbService : IHostedService, IDisposable {
     }
 
     // Callback for VerifyEmail
-    private void OnVerifyEmailCallback(ReducerEventContext ctx, string email) // Added args parameter
+    private void OnVerifyEmailCallback(ReducerEventContext ctx, string code) // Parameter is the verification code
     {
         if (ctx.Event.CallerIdentity != _localIdentity) return;
 
         switch (ctx.Event.Status)
         {
             case Status.Committed:
-                _logger.LogInformation("VerifyEmail reducer committed successfully with code {Code}.", ctx.Event.Status);
-                    // User data update (IsEmailVerified=true) will arrive via User_OnUpdate
+                _logger.LogInformation("VerifyEmail reducer committed successfully with code {Code}.", code);
+                // User data update (IsEmailVerified=true) will arrive via User_OnUpdate
+                // Extract email from the user record or use a stored value
+                var user = _conn?.Db.User.Identity.Find(ctx.Event.CallerIdentity);
+                string email = user?.Email ?? "unknown";
                 OnVerifySuccess?.Invoke(email);
                 break;
             case Status.Failed:
-                _logger.LogInformation("VerifyEmail reducer failed with code: {Error}", ctx.Event.Status);
+                _logger.LogInformation("VerifyEmail reducer failed: {Error}", ctx.Event.Status);
                 OnErrorReceived?.Invoke("VerifyEmail", $"Email verification failed: {ctx.Event.Status}");
+                break;
+        }
+    }
+
+
+    // Callback for RequestLogin
+    private void OnRequestLoginCodeCallback(ReducerEventContext ctx, string email) // Parameter is the verification code
+    {
+        if (ctx.Event.CallerIdentity != _localIdentity) return;
+
+        switch (ctx.Event.Status)
+        {
+            case Status.Committed:
+                _logger.LogInformation("Login Request reducer committed successfully with code {email}.", email);
+                OnVerifySuccess?.Invoke(email);
+                break;
+            case Status.Failed:
+                _logger.LogInformation("Login Request reducer failed: {Error}", ctx.Event.Status);
+                OnErrorReceived?.Invoke("Login Request", $"Email verification failed: {ctx.Event.Status}");
                 break;
         }
     }
@@ -568,6 +750,43 @@ public class SpacetimeDbService : IHostedService, IDisposable {
         }
     }
 
+    // Callback for VerifyLogin
+    private void OnVerifyLoginCallback(ReducerEventContext ctx, string verificationCode, string deviceId)
+    {
+        if (ctx.Event.CallerIdentity != _localIdentity) return;
+
+        switch (ctx.Event.Status)
+        {
+            case Status.Committed:
+                // The result from the reducer should be available in ctx.Event.Result
+                string result = ctx.Event.Status?.ToString() ?? "Login successful!";
+
+                // Check if the result contains an error message
+                if (result.Contains("failed") || result.Contains("invalid") || result.Contains("expired"))
+                {
+                    _logger.LogWarning("VerifyLogin failed with message: {Result}", result);
+                    OnErrorReceived?.Invoke("VerifyLogin", result);
+                    return;
+                }
+
+                _logger.LogInformation("VerifyLogin successful for device {DeviceId}", deviceId);
+
+                // The deviceId is passed through from the verification code submission
+                // It should be stored or used to identify this session
+                OnVerifyLoginSuccess?.Invoke(deviceId);
+                break;
+
+            case Status.Failed:
+                _logger.LogError("VerifyLogin reducer execution failed: {Error}", ctx.Event.Status);
+                OnErrorReceived?.Invoke("VerifyLogin", $"Email verification failed: {ctx.Event.Status}");
+                break;
+
+            default:
+                _logger.LogWarning("VerifyLogin reducer returned unexpected status: {Status}", ctx.Event.Status);
+                OnErrorReceived?.Invoke("VerifyLogin", $"Unexpected verification status: {ctx.Event.Status}");
+                break;
+        }
+    }
     public void Dispose()
     {
         _logger.LogInformation("Disposing SpacetimeDB Service.");
