@@ -1,8 +1,9 @@
-﻿@page "/auth"
+﻿@page "/"
 @using System.ComponentModel.DataAnnotations
 @using Kulicha.Services
 @using Microsoft.Extensions.Logging
 @using SpacetimeDB
+@using SpacetimeDB.Types
 @inject SpacetimeDbService SpacetimeService
 @inject ILogger<Auth> Logger
 
@@ -13,21 +14,29 @@
                 <div class="card-header">
                     <ul class="nav nav-tabs card-header-tabs">
                         <li class="nav-item">
-                            <button class="nav-link @(CurrentView == AuthView.Login ? "active" : "")" @onclick="() => SwitchView(AuthView.Login)">Login</button>
+                            <button class="nav-link @(CurrentView == AuthView.Login ? "active" : "")"
+                                    @onclick="() => SwitchView(AuthView.Login)">Login
+                            </button>
                         </li>
                         <li class="nav-item">
-                            <button class="nav-link @(CurrentView == AuthView.Register ? "active" : "")" @onclick="() => SwitchView(AuthView.Register)">Register</button>
+                            <button class="nav-link @(CurrentView == AuthView.Register ? "active" : "")"
+                                    @onclick="() => SwitchView(AuthView.Register)">Register
+                            </button>
                         </li>
                         @if (IsVerificationNeeded)
                         {
                             <li class="nav-item">
-                                <button class="nav-link @(CurrentView == AuthView.Verify ? "active" : "")" @onclick="() => SwitchView(AuthView.Verify)">Verify Email</button>
+                                <button class="nav-link @(CurrentView == AuthView.Verify ? "active" : "")"
+                                        @onclick="() => SwitchView(AuthView.Verify)">Verify Email
+                                </button>
                             </li>
                         }
                         @if (IsAuthenticated)
                         {
                             <li class="nav-item">
-                                <button class="nav-link @(CurrentView == AuthView.Profile ? "active" : "")" @onclick="() => SwitchView(AuthView.Profile)">Profile</button>
+                                <button class="nav-link @(CurrentView == AuthView.Profile ? "active" : "")"
+                                        @onclick="() => SwitchView(AuthView.Profile)">Profile
+                                </button>
                             </li>
                         }
                     </ul>
@@ -52,41 +61,47 @@
                         case AuthView.Login:
                             <h5 class="card-title">Login</h5>
                             <p class="text-muted">Already have an account? Log in here</p>
-                             <p class="text-muted">Login is handled automatically when connecting to SpacetimeDB with your credentials.</p>
-                             <p class="text-muted">If you don't have credentials yet, please register.</p>
-                             @* Removed the explicit login button as connection handles it *@
+                            <p class="text-muted">Login is handled automatically when connecting to SpacetimeDB with
+                                your credentials.</p>
+                            <p class="text-muted">If you don't have credentials yet, please register.</p>
+                            @* Removed the explicit login button as connection handles it *@
                             @* <div class="mb-3">
                                 <button class="btn btn-primary" @onclick="HandleLogin">
                                     Login with SpacetimeDB
                                 </button>
                             </div> *@
-                             @if (!IsAuthenticated)
-                             {
-                                 <p>Status: Not Connected / Not Authenticated</p>
-                                 <p>Please ensure the SpacetimeDB service is configured and attempting to connect.</p>
-                             } else {
-                                 <p>Status: Connected & Authenticated as @(SpacetimeService.LocalIdentity)</p>
-                                 <button class="btn btn-info" @onclick="() => SwitchView(AuthView.Profile)">Go to Profile</button>
-                             }
+                            @if (!IsAuthenticated)
+                            {
+                                <p>Status: Not Connected / Not Authenticated</p>
+                                <p>Please ensure the SpacetimeDB service is configured and attempting to connect.</p>
+                            }
+                            else
+                            {
+                                <p>Status: Connected & Authenticated as @(SpacetimeService.LocalIdentity)</p>
+                                <button class="btn btn-info" @onclick="() => SwitchView(AuthView.Profile)">Go to
+                                    Profile
+                                </button>
+                            }
                             break;
 
                         case AuthView.Register:
                             <h5 class="card-title">Register</h5>
                             <p class="text-muted">Create a new account</p>
                             <EditForm Model="@registerModel" OnValidSubmit="HandleRegister">
-                                <DataAnnotationsValidator />
-                                <ValidationSummary />
+                                <DataAnnotationsValidator/>
+                                <ValidationSummary/>
 
                                 <div class="mb-3">
                                     <label for="username" class="form-label">Username</label>
-                                    <InputText id="username" @bind-Value="registerModel.Username" class="form-control" />
-                                    <ValidationMessage For="@(() => registerModel.Username)" />
+                                    <InputText id="username" @bind-Value="registerModel.Username" class="form-control"/>
+                                    <ValidationMessage For="@(() => registerModel.Username)"/>
                                 </div>
 
                                 <div class="mb-3">
                                     <label for="email" class="form-label">Email</label>
-                                    <InputText id="email" @bind-Value="registerModel.Email" type="email" class="form-control" />
-                                    <ValidationMessage For="@(() => registerModel.Email)" />
+                                    <InputText id="email" @bind-Value="registerModel.Email" type="email"
+                                               class="form-control"/>
+                                    <ValidationMessage For="@(() => registerModel.Email)"/>
                                 </div>
 
                                 <div class="mb-3">
@@ -96,50 +111,53 @@
                                         <option value="1">Benefactor</option>
                                         <option value="2">Auditor</option>
                                     </InputSelect>
-                                    <ValidationMessage For="@(() => registerModel.Role)" />
+                                    <ValidationMessage For="@(() => registerModel.Role)"/>
                                 </div>
 
-                                <div class="mb-3">
-                                    <label for="latitude" class="form-label">Latitude</label>
-                                    <InputNumber id="latitude" @bind-Value="registerModel.Latitude" class="form-control" step="any"/>
-                                    <ValidationMessage For="@(() => registerModel.Latitude)" />
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="longitude" class="form-label">Longitude</label>
-                                    <InputNumber id="longitude" @bind-Value="registerModel.Longitude" class="form-control" step="any"/>
-                                    <ValidationMessage For="@(() => registerModel.Longitude)" />
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="address" class="form-label">Address</label>
-                                    <InputText id="address" @bind-Value="registerModel.Address" class="form-control" />
-                                    <ValidationMessage For="@(() => registerModel.Address)" />
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="city" class="form-label">City</label>
-                                    <InputText id="city" @bind-Value="registerModel.City" class="form-control" />
-                                    <ValidationMessage For="@(() => registerModel.City)" />
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="state" class="form-label">State/Province</label>
-                                    <InputText id="state" @bind-Value="registerModel.State" class="form-control" />
-                                    <ValidationMessage For="@(() => registerModel.State)" />
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="country" class="form-label">Country</label>
-                                    <InputText id="country" @bind-Value="registerModel.Country" class="form-control" />
-                                    <ValidationMessage For="@(() => registerModel.Country)" />
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="postalCode" class="form-label">Postal Code</label>
-                                    <InputText id="postalCode" @bind-Value="registerModel.PostalCode" class="form-control" />
-                                    <ValidationMessage For="@(() => registerModel.PostalCode)" />
-                                </div>
+                                @* <div class="mb-3"> *@
+                                @*     <label for="latitude" class="form-label">Latitude</label> *@
+                                @*     <InputNumber id="latitude" @bind-Value="registerModel.Latitude" class="form-control" *@
+                                @*                  step="any"/> *@
+                                @*     <ValidationMessage For="@(() => registerModel.Latitude)"/> *@
+                                @* </div> *@
+                                @* *@
+                                @* <div class="mb-3"> *@
+                                @*     <label for="longitude" class="form-label">Longitude</label> *@
+                                @*     <InputNumber id="longitude" @bind-Value="registerModel.Longitude" *@
+                                @*                  class="form-control" step="any"/> *@
+                                @*     <ValidationMessage For="@(() => registerModel.Longitude)"/> *@
+                                @* </div> *@
+                                @* *@
+                                @* <div class="mb-3"> *@
+                                @*     <label for="address" class="form-label">Address</label> *@
+                                @*     <InputText id="address" @bind-Value="registerModel.Address" class="form-control"/> *@
+                                @*     <ValidationMessage For="@(() => registerModel.Address)"/> *@
+                                @* </div> *@
+                                @* *@
+                                @* <div class="mb-3"> *@
+                                @*     <label for="city" class="form-label">City</label> *@
+                                @*     <InputText id="city" @bind-Value="registerModel.City" class="form-control"/> *@
+                                @*     <ValidationMessage For="@(() => registerModel.City)"/> *@
+                                @* </div> *@
+                                @* *@
+                                @* <div class="mb-3"> *@
+                                @*     <label for="state" class="form-label">State/Province</label> *@
+                                @*     <InputText id="state" @bind-Value="registerModel.State" class="form-control"/> *@
+                                @*     <ValidationMessage For="@(() => registerModel.State)"/> *@
+                                @* </div> *@
+                                @* *@
+                                @* <div class="mb-3"> *@
+                                @*     <label for="country" class="form-label">Country</label> *@
+                                @*     <InputText id="country" @bind-Value="registerModel.Country" class="form-control"/> *@
+                                @*     <ValidationMessage For="@(() => registerModel.Country)"/> *@
+                                @* </div> *@
+                                @* *@
+                                @* <div class="mb-3"> *@
+                                @*     <label for="postalCode" class="form-label">Postal Code</label> *@
+                                @*     <InputText id="postalCode" @bind-Value="registerModel.PostalCode" *@
+                                @*                class="form-control"/> *@
+                                @*     <ValidationMessage For="@(() => registerModel.PostalCode)"/> *@
+                                @* </div> *@
 
                                 <button type="submit" class="btn btn-primary">Register</button>
                             </EditForm>
@@ -149,65 +167,73 @@
                             <h5 class="card-title">Verify Email</h5>
                             <p class="text-muted">Enter verification code sent to your email</p>
                             <EditForm Model="@verifyModel" OnValidSubmit="HandleVerification">
-                                <DataAnnotationsValidator />
-                                <ValidationSummary />
+                                <DataAnnotationsValidator/>
+                                <ValidationSummary/>
 
                                 <div class="mb-3">
                                     <label for="verificationCode" class="form-label">Verification Code</label>
-                                    <InputText id="verificationCode" @bind-Value="verifyModel.VerificationCode" class="form-control" />
-                                    <ValidationMessage For="@(() => verifyModel.VerificationCode)" />
+                                    <InputText id="verificationCode" @bind-Value="verifyModel.VerificationCode"
+                                               class="form-control"/>
+                                    <ValidationMessage For="@(() => verifyModel.VerificationCode)"/>
                                 </div>
 
-                                <p class="text-muted small">Location data below is pre-filled from registration. You generally don't need to change it unless your location changed drastically *during* registration.</p>
+                                <p class="text-muted small">Location data below is pre-filled from registration. You
+                                    generally don't need to change it unless your location changed drastically *during*
+                                    registration.</p>
 
-                                <div class="mb-3">
-                                    <label for="verifyLatitude" class="form-label">Latitude</label>
-                                    <InputNumber id="verifyLatitude" @bind-Value="verifyModel.Latitude" class="form-control" step="any"/>
-                                    <ValidationMessage For="@(() => verifyModel.Latitude)" />
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="verifyLongitude" class="form-label">Longitude</label>
-                                    <InputNumber id="verifyLongitude" @bind-Value="verifyModel.Longitude" class="form-control" step="any"/>
-                                    <ValidationMessage For="@(() => verifyModel.Longitude)" />
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="verifyAddress" class="form-label">Address</label>
-                                    <InputText id="verifyAddress" @bind-Value="verifyModel.Address" class="form-control" />
-                                    <ValidationMessage For="@(() => verifyModel.Address)" />
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="verifyCity" class="form-label">City</label>
-                                    <InputText id="verifyCity" @bind-Value="verifyModel.City" class="form-control" />
-                                    <ValidationMessage For="@(() => verifyModel.City)" />
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="verifyState" class="form-label">State/Province</label>
-                                    <InputText id="verifyState" @bind-Value="verifyModel.State" class="form-control" />
-                                    <ValidationMessage For="@(() => verifyModel.State)" />
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="verifyCountry" class="form-label">Country</label>
-                                    <InputText id="verifyCountry" @bind-Value="verifyModel.Country" class="form-control" />
-                                    <ValidationMessage For="@(() => verifyModel.Country)" />
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="verifyPostalCode" class="form-label">Postal Code</label>
-                                    <InputText id="verifyPostalCode" @bind-Value="verifyModel.PostalCode" class="form-control" />
-                                    <ValidationMessage For="@(() => verifyModel.PostalCode)" />
-                                </div>
+                                @* <div class="mb-3"> *@
+                                @*     <label for="verifyLatitude" class="form-label">Latitude</label> *@
+                                @*     <InputNumber id="verifyLatitude" @bind-Value="verifyModel.Latitude" *@
+                                @*                  class="form-control" step="any"/> *@
+                                @*     <ValidationMessage For="@(() => verifyModel.Latitude)"/> *@
+                                @* </div> *@
+                                @* *@
+                                @* <div class="mb-3"> *@
+                                @*     <label for="verifyLongitude" class="form-label">Longitude</label> *@
+                                @*     <InputNumber id="verifyLongitude" @bind-Value="verifyModel.Longitude" *@
+                                @*                  class="form-control" step="any"/> *@
+                                @*     <ValidationMessage For="@(() => verifyModel.Longitude)"/> *@
+                                @* </div> *@
+                                @* *@
+                                @* <div class="mb-3"> *@
+                                @*     <label for="verifyAddress" class="form-label">Address</label> *@
+                                @*     <InputText id="verifyAddress" @bind-Value="verifyModel.Address" *@
+                                @*                class="form-control"/> *@
+                                @*     <ValidationMessage For="@(() => verifyModel.Address)"/> *@
+                                @* </div> *@
+                                @* *@
+                                @* <div class="mb-3"> *@
+                                @*     <label for="verifyCity" class="form-label">City</label> *@
+                                @*     <InputText id="verifyCity" @bind-Value="verifyModel.City" class="form-control"/> *@
+                                @*     <ValidationMessage For="@(() => verifyModel.City)"/> *@
+                                @* </div> *@
+                                @* *@
+                                @* <div class="mb-3"> *@
+                                @*     <label for="verifyState" class="form-label">State/Province</label> *@
+                                @*     <InputText id="verifyState" @bind-Value="verifyModel.State" class="form-control"/> *@
+                                @*     <ValidationMessage For="@(() => verifyModel.State)"/> *@
+                                @* </div> *@
+                                @* *@
+                                @* <div class="mb-3"> *@
+                                @*     <label for="verifyCountry" class="form-label">Country</label> *@
+                                @*     <InputText id="verifyCountry" @bind-Value="verifyModel.Country" *@
+                                @*                class="form-control"/> *@
+                                @*     <ValidationMessage For="@(() => verifyModel.Country)"/> *@
+                                @* </div> *@
+                                @* *@
+                                @* <div class="mb-3"> *@
+                                @*     <label for="verifyPostalCode" class="form-label">Postal Code</label> *@
+                                @*     <InputText id="verifyPostalCode" @bind-Value="verifyModel.PostalCode" *@
+                                @*                class="form-control"/> *@
+                                @*     <ValidationMessage For="@(() => verifyModel.PostalCode)"/> *@
+                                @* </div> *@
 
                                 <button type="submit" class="btn btn-primary">Verify</button>
                             </EditForm>
                             break;
 
                         case AuthView.Profile:
-                             @if (CurrentUser == null)
+                            @if (CurrentUser == null)
                             {
                                 <p>Loading profile...</p>
                                 @* Optionally add a button to retry loading *@
@@ -218,71 +244,79 @@
                                 <h5 class="card-title">Profile (@CurrentUser.Username)</h5>
                                 <p class="text-muted">Update your profile information</p>
                                 <EditForm Model="@profileModel" OnValidSubmit="HandleProfileUpdate">
-                                    <DataAnnotationsValidator />
-                                    <ValidationSummary />
+                                    <DataAnnotationsValidator/>
+                                    <ValidationSummary/>
 
-                                     <div class="mb-3">
+                                    <div class="mb-3">
                                         <label class="form-label">Username (Read-only)</label>
-                                        <InputText @bind-Value="CurrentUser.Username" class="form-control" readonly />
+                                        <InputText @bind-Value="CurrentUser.Username" class="form-control" readonly/>
                                     </div>
 
                                     <div class="mb-3">
                                         <label for="profileEmail" class="form-label">Email</label>
-                                        <InputText id="profileEmail" @bind-Value="profileModel.Email" type="email" class="form-control" />
-                                        <ValidationMessage For="@(() => profileModel.Email)" />
+                                        <InputText id="profileEmail" @bind-Value="profileModel.Email" type="email"
+                                                   class="form-control"/>
+                                        <ValidationMessage For="@(() => profileModel.Email)"/>
                                     </div>
 
-                                     <div class="mb-3">
+                                    <div class="mb-3">
                                         <label class="form-label">Role (Read-only)</label>
-                                        <InputText @bind-Value="CurrentUser.Role" class="form-control" readonly />
+                                        <InputText @bind-Value="CurrentUser.Role" class="form-control" readonly/>
                                     </div>
 
-                                    <div class="mb-3">
-                                        <label for="profileLatitude" class="form-label">Latitude</label>
-                                        <InputNumber id="profileLatitude" @bind-Value="profileModel.Latitude" class="form-control" step="any"/>
-                                        <ValidationMessage For="@(() => profileModel.Latitude)" />
-                                    </div>
-
-                                    <div class="mb-3">
-                                        <label for="profileLongitude" class="form-label">Longitude</label>
-                                        <InputNumber id="profileLongitude" @bind-Value="profileModel.Longitude" class="form-control" step="any"/>
-                                        <ValidationMessage For="@(() => profileModel.Longitude)" />
-                                    </div>
-
-                                    <div class="mb-3">
-                                        <label for="profileAddress" class="form-label">Address</label>
-                                        <InputText id="profileAddress" @bind-Value="profileModel.Address" class="form-control" />
-                                        <ValidationMessage For="@(() => profileModel.Address)" />
-                                    </div>
-
-                                    <div class="mb-3">
-                                        <label for="profileCity" class="form-label">City</label>
-                                        <InputText id="profileCity" @bind-Value="profileModel.City" class="form-control" />
-                                        <ValidationMessage For="@(() => profileModel.City)" />
-                                    </div>
-
-                                    <div class="mb-3">
-                                        <label for="profileState" class="form-label">State/Province</label>
-                                        <InputText id="profileState" @bind-Value="profileModel.State" class="form-control" />
-                                        <ValidationMessage For="@(() => profileModel.State)" />
-                                    </div>
-
-                                    <div class="mb-3">
-                                        <label for="profileCountry" class="form-label">Country</label>
-                                        <InputText id="profileCountry" @bind-Value="profileModel.Country" class="form-control" />
-                                        <ValidationMessage For="@(() => profileModel.Country)" />
-                                    </div>
-
-                                    <div class="mb-3">
-                                        <label for="profilePostalCode" class="form-label">Postal Code</label>
-                                        <InputText id="profilePostalCode" @bind-Value="profileModel.PostalCode" class="form-control" />
-                                        <ValidationMessage For="@(() => profileModel.PostalCode)" />
-                                    </div>
+                                    @* <div class="mb-3"> *@
+                                    @*     <label for="profileLatitude" class="form-label">Latitude</label> *@
+                                    @*     <InputNumber id="profileLatitude" @bind-Value="profileModel.Latitude" *@
+                                    @*                  class="form-control" step="any"/> *@
+                                    @*     <ValidationMessage For="@(() => profileModel.Latitude)"/> *@
+                                    @* </div> *@
+                                    @* *@
+                                    @* <div class="mb-3"> *@
+                                    @*     <label for="profileLongitude" class="form-label">Longitude</label> *@
+                                    @*     <InputNumber id="profileLongitude" @bind-Value="profileModel.Longitude" *@
+                                    @*                  class="form-control" step="any"/> *@
+                                    @*     <ValidationMessage For="@(() => profileModel.Longitude)"/> *@
+                                    @* </div> *@
+                                    @* *@
+                                    @* <div class="mb-3"> *@
+                                    @*     <label for="profileAddress" class="form-label">Address</label> *@
+                                    @*     <InputText id="profileAddress" @bind-Value="profileModel.Address" *@
+                                    @*                class="form-control"/> *@
+                                    @*     <ValidationMessage For="@(() => profileModel.Address)"/> *@
+                                    @* </div> *@
+                                    @* *@
+                                    @* <div class="mb-3"> *@
+                                    @*     <label for="profileCity" class="form-label">City</label> *@
+                                    @*     <InputText id="profileCity" @bind-Value="profileModel.City" *@
+                                    @*                class="form-control"/> *@
+                                    @*     <ValidationMessage For="@(() => profileModel.City)"/> *@
+                                    @* </div> *@
+                                    @* *@
+                                    @* <div class="mb-3"> *@
+                                    @*     <label for="profileState" class="form-label">State/Province</label> *@
+                                    @*     <InputText id="profileState" @bind-Value="profileModel.State" *@
+                                    @*                class="form-control"/> *@
+                                    @*     <ValidationMessage For="@(() => profileModel.State)"/> *@
+                                    @* </div> *@
+                                    @* *@
+                                    @* <div class="mb-3"> *@
+                                    @*     <label for="profileCountry" class="form-label">Country</label> *@
+                                    @*     <InputText id="profileCountry" @bind-Value="profileModel.Country" *@
+                                    @*                class="form-control"/> *@
+                                    @*     <ValidationMessage For="@(() => profileModel.Country)"/> *@
+                                    @* </div> *@
+                                    @* *@
+                                    @* <div class="mb-3"> *@
+                                    @*     <label for="profilePostalCode" class="form-label">Postal Code</label> *@
+                                    @*     <InputText id="profilePostalCode" @bind-Value="profileModel.PostalCode" *@
+                                    @*                class="form-control"/> *@
+                                    @*     <ValidationMessage For="@(() => profileModel.PostalCode)"/> *@
+                                    @* </div> *@
 
                                     <button type="submit" class="btn btn-primary">Update Profile</button>
                                 </EditForm>
 
-                                <hr />
+                                <hr/>
                                 <div class="mt-3">
                                     <button class="btn btn-danger" @onclick="HandleLogout">Logout</button>
                                 </div>
@@ -297,8 +331,7 @@
 
 @code {
     // Define view states for the component
-    private enum AuthView
-    {
+    private enum AuthView {
         Login,
         Register,
         Verify,
@@ -306,6 +339,21 @@
     }
 
     private AuthView CurrentView { get; set; } = AuthView.Login;
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "view")]
+    public string? View { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (!string.IsNullOrEmpty(View))
+        {
+            if (Enum.TryParse<AuthView>(View, true, out var view))
+            {
+                CurrentView = view;
+            }
+        }
+        base.OnParametersSet();
+    }
     private string ErrorMessage { get; set; } = "";
     private string SuccessMessage { get; set; } = "";
     private bool IsVerificationNeeded { get; set; } = false; // Consider if this state is still needed or if backend drives it
@@ -319,76 +367,87 @@
 
     protected override async Task OnInitializedAsync()
     {
-        SpacetimeService.OnConnect += HandleConnectionChange;
-        SpacetimeService.OnDisconnect += HandleConnectionChange;
-        SpacetimeService.OnIdentityReceived += HandleIdentityReceived;
-        SpacetimeService.OnProfileReceived += HandleProfileReceived; // Add handler for profile data
-        SpacetimeService.OnErrorReceived += HandleSpacetimeError; // Add handler for errors
+        if (!string.IsNullOrEmpty(View))
+        {
+            if (Enum.TryParse<AuthView>(View, true, out var view))
+            {
+                CurrentView = view;
+            }
+        }
+        {
+            SpacetimeService.OnConnect += HandleConnectionChange;
+            SpacetimeService.OnDisconnect += HandleConnectionChange;
+            SpacetimeService.OnIdentityReceived += HandleIdentityReceived;
+            // SpacetimeService.OnProfileReceived += HandleProfileReceived;
+            SpacetimeService.OnErrorReceived += HandleSpacetimeError; // Add handler for errors
 
-        // Check initial state
-        HandleConnectionChange();
+            // Check initial state
+            HandleConnectionChange();
+
+            await base.OnInitializedAsync();
+        }
+
     }
 
-    private async void HandleConnectionChange()
+    private void HandleConnectionChange()
     {
         if (IsAuthenticated)
         {
             Logger.LogInformation("Authenticated. Attempting to load profile.");
-            await LoadProfile(); // Attempt to load profile when authenticated
+            _ = LoadProfile(); // Attempt to load profile when authenticated
             // Don't switch view here yet, wait for profile data or confirmation it doesn't exist
         }
         else
         {
             Logger.LogInformation("Not authenticated. Resetting view to Login.");
-            CurrentView = AuthView.Login; // Default to Login view if not authenticated
-            CurrentUser = null; // Clear user data
-            IsVerificationNeeded = false; // Reset verification flag
-            profileModel = new ProfileModel(); // Reset profile model
+            CurrentView = AuthView.Login;
+            CurrentUser = null;
+            IsVerificationNeeded = false;
+            profileModel = new ProfileModel();
         }
-        await InvokeAsync(StateHasChanged); // Update UI
+        InvokeAsync(StateHasChanged);
     }
 
-     private void HandleIdentityReceived(Identity identity)
+    private void HandleIdentityReceived(Identity identity)
     {
         Logger.LogInformation("Identity received: {Username}", identity);
         // Now that we have identity, request profile
-         LoadProfile();
-         InvokeAsync(StateHasChanged);
+        _ = LoadProfile();
+        InvokeAsync(StateHasChanged);
     }
 
     // New handler for receiving profile data from the service
-    private void HandleProfileReceived(User user) // Changed to void
+    private void HandleProfileReceived(User user)
     {
-        Logger.LogInformation("Profile received for user: {Username}", user.Username);
+        Logger.LogInformation("Profile received for user: {Username}", user!.Username);
         CurrentUser = user;
         // Populate the profile model with the received data
         profileModel = new ProfileModel
         {
             Email = CurrentUser.Email,
             // Add null checks for location properties, providing default values
-            Latitude = CurrentUser.Location?.Latitude ?? 0,
-            Longitude = CurrentUser.Location?.Longitude ?? 0,
-            Address = CurrentUser.Location?.Address ?? "",
-            City = CurrentUser.Location?.City ?? "",
-            State = CurrentUser.Location?.State ?? "",
-            Country = CurrentUser.Location?.Country ?? "",
-            PostalCode = CurrentUser.Location?.PostalCode ?? ""
+            // Latitude = CurrentUser.Location?.Latitude ?? 0,
+            // Longitude = CurrentUser.Location?.Longitude ?? 0,
+            // Address = CurrentUser.Location?.Address ?? "",
+            // City = CurrentUser.Location?.City ?? "",
+            // State = CurrentUser.Location?.State ?? "",
+            // Country = CurrentUser.Location?.Country ?? "",
+            // PostalCode = CurrentUser.Location?.PostalCode ?? ""
         };
-        SwitchView(AuthView.Profile); // Switch to profile view now that we have data
-        InvokeAsync(StateHasChanged); // Request UI update (await removed)
+        SwitchView(AuthView.Profile);
+        InvokeAsync(StateHasChanged);
     }
 
     // New handler for receiving errors from SpacetimeDBService
     private async void HandleSpacetimeError(string errorType, string errorMessage)
     {
-        Logger.LogError("SpacetimeDB Error ({ErrorType}): {ErrorMessage}", errorType, errorMessage);
+        Logger.LogInformation("SpacetimeDB Error ({ErrorType}): {ErrorMessage}", errorType, errorMessage);
         ErrorMessage = $"Error ({errorType}): {errorMessage}";
         // Decide how to handle different errors, e.g., clear success message
         SuccessMessage = "";
         // Potentially switch view based on error, e.g., back to login on auth failure
         await InvokeAsync(StateHasChanged);
     }
-
 
     private async Task LoadProfile()
     {
@@ -408,18 +467,16 @@
             // The SpacetimeDBService should handle the actual request/response
             // We just trigger the request here.
             SpacetimeService.RequestProfile();
-            // We don't switch view here; HandleProfileReceived will do that when data arrives.
         }
         catch (Exception ex)
         {
             ErrorMessage = $"Error loading profile: {ex.Message}";
-            Logger.LogError(ex, "Error requesting user profile");
+            Logger.LogInformation(ex, "Error requesting user profile");
             SuccessMessage = ""; // Clear loading message
             // Optionally switch back to login or show an error state
         }
         await InvokeAsync(StateHasChanged);
     }
-
 
     private void SwitchView(AuthView view)
     {
@@ -429,22 +486,22 @@
             Logger.LogWarning("Attempted to switch to Profile view while not authenticated.");
             CurrentView = AuthView.Login; // Redirect to login
         }
-         // Only allow switching to Verify if verification is needed (might need better logic)
+        // Only allow switching to Verify if verification is needed (might need better logic)
         else if (view == AuthView.Verify && !IsVerificationNeeded)
         {
-             Logger.LogWarning("Attempted to switch to Verify view when verification is not marked as needed.");
-             // Decide where to go - maybe back to register or login?
-             CurrentView = AuthView.Register; // Or AuthView.Login
+            Logger.LogWarning("Attempted to switch to Verify view when verification is not marked as needed.");
+            CurrentView = AuthView.Login;
         }
         else
         {
             CurrentView = view;
+            StateHasChanged(); // Force UI update immediately after view change
         }
 
         // Clear messages when switching views unless it's an error redirect
         if (string.IsNullOrEmpty(ErrorMessage)) // Don't clear error message if we just set one
         {
-             ErrorMessage = "";
+            ErrorMessage = "";
         }
         SuccessMessage = ""; // Always clear success message on view switch
         StateHasChanged(); // Ensure UI updates
@@ -471,16 +528,16 @@
             // Assume SpacetimeDBService takes care of sending the command
             // The service should expose a method like RegisterUser
             SpacetimeService.RegisterUser(
-                registerModel.Username,
-                registerModel.Email,
-                registerModel.Role,
-                registerModel.Latitude,
-                registerModel.Longitude,
-                registerModel.Address,
-                registerModel.City,
-                registerModel.State,
-                registerModel.Country,
-                registerModel.PostalCode
+            registerModel.Username,
+            registerModel.Email,
+            registerModel.Role
+            // registerModel.Latitude,
+            // registerModel.Longitude,
+            // registerModel.Address,
+            // registerModel.City,
+            // registerModel.State,
+            // registerModel.Country,
+            // registerModel.PostalCode
             );
 
             // Important: We don't know if registration succeeded yet.
@@ -491,21 +548,21 @@
             SwitchView(AuthView.Verify);
 
             // Pre-populate the verification form
-            verifyModel.Latitude = registerModel.Latitude;
-            verifyModel.Longitude = registerModel.Longitude;
-            verifyModel.Address = registerModel.Address;
-            verifyModel.City = registerModel.City;
-            verifyModel.State = registerModel.State;
-            verifyModel.Country = registerModel.Country;
-            verifyModel.PostalCode = registerModel.PostalCode;
+            // verifyModel.Latitude = registerModel.Latitude;
+            // verifyModel.Longitude = registerModel.Longitude;
+            // verifyModel.Address = registerModel.Address;
+            // verifyModel.City = registerModel.City;
+            // verifyModel.State = registerModel.State;
+            // verifyModel.Country = registerModel.Country;
+            // verifyModel.PostalCode = registerModel.PostalCode;
 
-             // Clear registration form after submission
+            // Clear registration form after submission
             registerModel = new RegisterModel();
         }
         catch (Exception ex)
         {
             ErrorMessage = $"Registration failed: {ex.Message}";
-            Logger.LogError(ex, "Error during registration submission");
+            Logger.LogInformation(ex, "Error during registration submission");
             SuccessMessage = "";
         }
     }
@@ -514,12 +571,12 @@
     {
         try
         {
-             ErrorMessage = "";
-             SuccessMessage = "";
-             Logger.LogInformation("Attempting email verification with code: {VerificationCode}", verifyModel.VerificationCode);
+            ErrorMessage = "";
+            SuccessMessage = "";
+            Logger.LogInformation("Attempting email verification with code: {VerificationCode}", verifyModel.VerificationCode);
 
             // Assume SpacetimeDBService takes care of sending the command
-            SpacetimeService.VerifyEmail(verifyModel.VerificationCode,verifyModel.Email);
+            SpacetimeService.VerifyEmail(verifyModel.VerificationCode, verifyModel.Email);
 
             // Again, we assume success for now. Backend should confirm.
             // The SpacetimeDBService should receive confirmation and potentially trigger login/identity.
@@ -527,13 +584,13 @@
             IsVerificationNeeded = false; // Clear the flag
             SwitchView(AuthView.Login); // Go back to login, connection should establish identity now
 
-             // Clear verification form
+            // Clear verification form
             verifyModel = new VerifyModel();
         }
         catch (Exception ex)
         {
             ErrorMessage = $"Verification failed: {ex.Message}";
-            Logger.LogError(ex, "Error during email verification submission");
+            Logger.LogInformation(ex, "Error during email verification submission");
             SuccessMessage = "";
         }
     }
@@ -550,20 +607,20 @@
 
         try
         {
-             ErrorMessage = "";
-             SuccessMessage = "";
-             Logger.LogInformation("Attempting to update profile for user: {Username}", CurrentUser.Username);
+            ErrorMessage = "";
+            SuccessMessage = "";
+            Logger.LogInformation("Attempting to update profile for user: {Username}", CurrentUser.Username);
 
             // Assume SpacetimeDBService takes care of sending the command
-             SpacetimeService.UpdateProfile(
-                profileModel.Email, // Assuming email can be updated
-                profileModel.Latitude,
-                profileModel.Longitude,
-                profileModel.Address,
-                profileModel.City,
-                profileModel.State,
-                profileModel.Country,
-                profileModel.PostalCode
+            SpacetimeService.UpdateProfile(
+            profileModel.Email // Assuming email can be updated
+            // profileModel.Latitude,
+            // profileModel.Longitude,
+            // profileModel.Address,
+            // profileModel.City,
+            // profileModel.State,
+            // profileModel.Country,
+            // profileModel.PostalCode
             );
 
             // Assume success, backend should confirm and ideally send back updated profile
@@ -574,7 +631,7 @@
         catch (Exception ex)
         {
             ErrorMessage = $"Profile update failed: {ex.Message}";
-            Logger.LogError(ex, "Error during profile update submission");
+            Logger.LogInformation(ex, "Error during profile update submission");
             SuccessMessage = "";
         }
     }
@@ -594,28 +651,26 @@
         catch (Exception ex)
         {
             ErrorMessage = $"Logout failed: {ex.Message}";
-            Logger.LogError(ex, "Error during logout");
+            Logger.LogInformation(ex, "Error during logout");
             SuccessMessage = "";
         }
         // State should be updated by the OnDisconnect event handler triggering HandleConnectionChange
     }
 
-     // Implement IDisposable to unsubscribe from events
+    // Implement IDisposable to unsubscribe from events
     public void Dispose()
     {
         SpacetimeService.OnConnect -= HandleConnectionChange;
         SpacetimeService.OnDisconnect -= HandleConnectionChange;
         SpacetimeService.OnIdentityReceived -= HandleIdentityReceived;
-        SpacetimeService.OnProfileReceived -= HandleProfileReceived;
+        // SpacetimeService.OnProfileReceived -= HandleProfileReceived;
         SpacetimeService.OnErrorReceived -= HandleSpacetimeError;
-         GC.SuppressFinalize(this); // Standard practice in Dispose pattern
+        GC.SuppressFinalize(this); // Standard practice in Dispose pattern
     }
 
-
-    // --- Data model classes ---
-    // (Keep these as they are, they look reasonable)
-     public class RegisterModel
-    {
+// --- Data model classes ---
+// (Keep these as they are, they look reasonable)
+    public class RegisterModel {
         [Required]
         [StringLength(32, MinimumLength = 3, ErrorMessage = "Username must be between 3 and 32 characters")]
         [RegularExpression(@"^[a-zA-Z0-9_]+$", ErrorMessage = "Username can only contain letters, numbers, and underscores")]
@@ -630,156 +685,134 @@
         [Range(0, 2, ErrorMessage = "Please select a valid role")]
         public int Role { get; set; } = 0; // Default to Beneficiary
 
-        [Required]
-        [Range(-90.0, 90.0, ErrorMessage = "Latitude must be between -90 and 90")]
-        public double Latitude { get; set; } = 0;
-
-        [Required]
-        [Range(-180.0, 180.0, ErrorMessage = "Longitude must be between -180 and 180")]
-        public double Longitude { get; set; } = 0;
-
-        [Required]
-        [StringLength(200, MinimumLength= 5, ErrorMessage ="Address should be between 5 and 200 characters")]
-        public string Address { get; set; } = "";
-
-        [Required]
-        [StringLength(100, MinimumLength= 2, ErrorMessage ="City should be between 2 and 100 characters")]
-        public string City { get; set; } = "";
-
-        [Required]
-        [StringLength(100, MinimumLength= 2, ErrorMessage ="State/Province should be between 2 and 100 characters")]
-        public string State { get; set; } = "";
-
-        [Required]
-        [StringLength(100, MinimumLength= 2, ErrorMessage ="Country should be between 2 and 100 characters")]
-        public string Country { get; set; } = "";
-
-        [Required]
-        [StringLength(20, MinimumLength= 3, ErrorMessage ="Postal Code should be between 3 and 20 characters")]
-        public string PostalCode { get; set; } = "";
+// [Required]
+// [Range(-90.0, 90.0, ErrorMessage = "Latitude must be between -90 and 90")]
+// public double Latitude { get; set; } = 0;
+//
+// [Required]
+// [Range(-180.0, 180.0, ErrorMessage = "Longitude must be between -180 and 180")]
+// public double Longitude { get; set; } = 0;
+//
+// [Required]
+// [StringLength(200, MinimumLength = 5, ErrorMessage = "Address should be between 5 and 200 characters")]
+// public string Address { get; set; } = "";
+//
+// [Required]
+// [StringLength(100, MinimumLength = 2, ErrorMessage = "City should be between 2 and 100 characters")]
+// public string City { get; set; } = "";
+//
+// [Required]
+// [StringLength(100, MinimumLength = 2, ErrorMessage = "State/Province should be between 2 and 100 characters")]
+// public string State { get; set; } = "";
+//
+// [Required]
+// [StringLength(100, MinimumLength = 2, ErrorMessage = "Country should be between 2 and 100 characters")]
+// public string Country { get; set; } = "";
+//
+// [Required]
+// [StringLength(20, MinimumLength = 3, ErrorMessage = "Postal Code should be between 3 and 20 characters")]
+// public string PostalCode { get; set; } = "";
     }
 
-    public class VerifyModel
-    {
+    public class VerifyModel {
         [Required]
-         [StringLength(6, MinimumLength= 6, ErrorMessage ="Verification code must be 6 characters")] // Assuming 6 char code
-         [RegularExpression(@"^[a-zA-Z0-9]+$", ErrorMessage = "Verification code can only contain letters and numbers")]
+        [StringLength(6, MinimumLength = 6, ErrorMessage = "Verification code must be 6 characters")] // Assuming 6 char code
+        [RegularExpression(@"^[a-zA-Z0-9]+$", ErrorMessage = "Verification code can only contain letters and numbers")]
         public string VerificationCode { get; set; } = "";
 
         [Required]
-        [StringLength(6, MinimumLength= 6, ErrorMessage ="Email code must be 6 characters")] // Assuming 6 char code
+        [StringLength(6, MinimumLength = 6, ErrorMessage = "Email code must be 6 characters")] // Assuming 6 char code
         [RegularExpression(@"^[a-zA-Z0-9]+$", ErrorMessage = "Email Address code can only contain letters and numbers")]
         public string Email { get; set; } = "";
 
-        // Location data might be optional for verification if the backend uses the initially provided one
-        // But including them allows potential correction if needed during verification step.
-        [Required]
-        [Range(-90.0, 90.0, ErrorMessage = "Latitude must be between -90 and 90")]
-        public double Latitude { get; set; } = 0;
-
-        [Required]
-        [Range(-180.0, 180.0, ErrorMessage = "Longitude must be between -180 and 180")]
-        public double Longitude { get; set; } = 0;
-
-        [Required]
-        [StringLength(200, MinimumLength= 5, ErrorMessage ="Address should be between 5 and 200 characters")]
-        public string Address { get; set; } = "";
-
-        [Required]
-        [StringLength(100, MinimumLength= 2, ErrorMessage ="City should be between 2 and 100 characters")]
-        public string City { get; set; } = "";
-
-        [Required]
-        [StringLength(100, MinimumLength= 2, ErrorMessage ="State/Province should be between 2 and 100 characters")]
-        public string State { get; set; } = "";
-
-        [Required]
-        [StringLength(100, MinimumLength= 2, ErrorMessage ="Country should be between 2 and 100 characters")]
-        public string Country { get; set; } = "";
-
-        [Required]
-        [StringLength(20, MinimumLength= 3, ErrorMessage ="Postal Code should be between 3 and 20 characters")]
-        public string PostalCode { get; set; } = "";
+// // Location data might be optional for verification if the backend uses the initially provided one
+// // But including them allows potential correction if needed during verification step.
+// [Required]
+// [Range(-90.0, 90.0, ErrorMessage = "Latitude must be between -90 and 90")]
+// public double Latitude { get; set; } = 0;
+//
+// [Required]
+// [Range(-180.0, 180.0, ErrorMessage = "Longitude must be between -180 and 180")]
+// public double Longitude { get; set; } = 0;
+//
+// [Required]
+// [StringLength(200, MinimumLength = 5, ErrorMessage = "Address should be between 5 and 200 characters")]
+// public string Address { get; set; } = "";
+//
+// [Required]
+// [StringLength(100, MinimumLength = 2, ErrorMessage = "City should be between 2 and 100 characters")]
+// public string City { get; set; } = "";
+//
+// [Required]
+// [StringLength(100, MinimumLength = 2, ErrorMessage = "State/Province should be between 2 and 100 characters")]
+// public string State { get; set; } = "";
+//
+// [Required]
+// [StringLength(100, MinimumLength = 2, ErrorMessage = "Country should be between 2 and 100 characters")]
+// public string Country { get; set; } = "";
+//
+// [Required]
+// [StringLength(20, MinimumLength = 3, ErrorMessage = "Postal Code should be between 3 and 20 characters")]
+// public string PostalCode { get; set; } = "";
     }
 
-    public class ProfileModel
-    {
+    public class ProfileModel {
         [Required]
         [EmailAddress]
         [StringLength(254)]
         public string Email { get; set; } = ""; // Allow email update?
 
-        [Required]
-        [Range(-90.0, 90.0, ErrorMessage = "Latitude must be between -90 and 90")]
-        public double Latitude { get; set; } = 0;
-
-        [Required]
-        [Range(-180.0, 180.0, ErrorMessage = "Longitude must be between -180 and 180")]
-        public double Longitude { get; set; } = 0;
-
-        [Required]
-        [StringLength(200, MinimumLength= 5, ErrorMessage ="Address should be between 5 and 200 characters")]
-        public string Address { get; set; } = "";
-
-        [Required]
-        [StringLength(100, MinimumLength= 2, ErrorMessage ="City should be between 2 and 100 characters")]
-        public string City { get; set; } = "";
-
-        [Required]
-        [StringLength(100, MinimumLength= 2, ErrorMessage ="State/Province should be between 2 and 100 characters")]
-        public string State { get; set; } = "";
-
-        [Required]
-        [StringLength(100, MinimumLength= 2, ErrorMessage ="Country should be between 2 and 100 characters")]
-        public string Country { get; set; } = "";
-
-        [Required]
-        [StringLength(20, MinimumLength= 3, ErrorMessage ="Postal Code should be between 3 and 20 characters")]
-        public string PostalCode { get; set; } = "";
+// [Required]
+// [Range(-90.0, 90.0, ErrorMessage = "Latitude must be between -90 and 90")]
+// public double Latitude { get; set; } = 0;
+//
+// [Required]
+// [Range(-180.0, 180.0, ErrorMessage = "Longitude must be between -180 and 180")]
+// public double Longitude { get; set; } = 0;
+//
+// [Required]
+// [StringLength(200, MinimumLength = 5, ErrorMessage = "Address should be between 5 and 200 characters")]
+// public string Address { get; set; } = "";
+//
+// [Required]
+// [StringLength(100, MinimumLength = 2, ErrorMessage = "City should be between 2 and 100 characters")]
+// public string City { get; set; } = "";
+//
+// [Required]
+// [StringLength(100, MinimumLength = 2, ErrorMessage = "State/Province should be between 2 and 100 characters")]
+// public string State { get; set; } = "";
+//
+// [Required]
+// [StringLength(100, MinimumLength = 2, ErrorMessage = "Country should be between 2 and 100 characters")]
+// public string Country { get; set; } = "";
+//
+// [Required]
+// [StringLength(20, MinimumLength = 3, ErrorMessage = "Postal Code should be between 3 and 20 characters")]
+// public string PostalCode { get; set; } = "";
     }
 
-     // --- SpacetimeDB Type Placeholder ---
-    // Replace this with the actual User type definition from your SpacetimeDB generated code
-    // This is just a placeholder to make the component compile
-    public class User
-    {
+// --- SpacetimeDB Type Placeholder ---
+// Replace this with the actual User type definition from your SpacetimeDB generated code
+// This is just a placeholder to make the component compile
+    public class User {
         public string Username { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public string Role { get; set; } = string.Empty; // Or enum/int if that's how it's defined
-        public Location Location { get; set; } = new Location();
-        // Add other relevant fields: IdentityId, IsVerified, etc.
+// public Location Location { get; set; } = new Location();
+// // Add other relevant fields: IdentityId, IsVerified, etc.
         public bool IsVerified { get; set; }
     }
 
-    public class Location
-    {
-         public double Latitude { get; set; }
-         public double Longitude { get; set; }
-         public string Address { get; set; } = string.Empty;
-         public string City { get; set; } = string.Empty;
-         public string State { get; set; } = string.Empty;
-         public string Country { get; set; } = string.Empty;
-         public string PostalCode { get; set; } = string.Empty;
-    }
+// public class Location {
+// public double Latitude { get; set; }
+// public double Longitude { get; set; }
+// public string Address { get; set; } = string.Empty;
+// public string City { get; set; } = string.Empty;
+// public string State { get; set; } = string.Empty;
+// public string Country { get; set; } = string.Empty;
+// public string PostalCode { get; set; } = string.Empty;
+// }
 
-    // Need to update SpacetimeDBService interface/implementation based on usage here
-    // Example placeholder for SpacetimeDBService methods used
-    public interface ISpacetimeDbServicePlaceholder {
-        bool IsConnected { get; }
-        SpacetimeDB.Identity? LocalIdentity { get; }
-        event Action? OnConnect;
-        event Action? OnDisconnect;
-        event Action<SpacetimeDB.Identity>? OnIdentityReceived;
-        event Action<User>? OnProfileReceived; // Event to push profile data
-        event Action<string, string>? OnErrorReceived; // Event for errors (type, message)
-
-        void RegisterUser(string username, string email, int role, double lat, double lon, string address, string city, string state, string country, string postalCode);
-        void VerifyEmail(string code, double lat, double lon, string address, string city, string state, string country, string postalCode);
-        void UpdateProfile(string email, double lat, double lon, string address, string city, string state, string country, string postalCode);
-        void RequestProfile(); // Method to ask the service to get the profile
-        Task DisconnectAsync(); // Async disconnect
-        // void InputQueue.Enqueue((string, string) command); // Replace InputQueue with specific methods
-    }
-
-
+// Need to update SpacetimeDBService interface/implementation based on usage here
+// Example placeholder for SpacetimeDBService methods used
 }
