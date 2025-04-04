@@ -32,3 +32,14 @@ Start Server
 ```bash
 spacetime start
 ```
+
+Kill Process
+
+```bash
+pkill spacetimedb
+```
+
+Clear DB
+```bash
+spacetime server clear
+``` 
