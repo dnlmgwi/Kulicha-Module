@@ -22,7 +22,7 @@ namespace SpacetimeDB.Types
         {
             AddTable(AuditLog = new(conn));
             AddTable(AuthSession = new(conn));
-            AddTable(PendingRegistration = new(conn));
+            AddTable(PendingVerification = new(conn));
             AddTable(User = new(conn));
         }
     }
@@ -440,7 +440,7 @@ namespace SpacetimeDB.Types
                 "RegisterUser" => BSATNHelpers.Decode<Reducer.RegisterUser>(encodedArgs),
                 "RequestLoginCode" => BSATNHelpers.Decode<Reducer.RequestLoginCode>(encodedArgs),
                 "UpdateProfile" => BSATNHelpers.Decode<Reducer.UpdateProfile>(encodedArgs),
-                "VerifyEmail" => BSATNHelpers.Decode<Reducer.VerifyEmail>(encodedArgs),
+                "VerifyAccount" => BSATNHelpers.Decode<Reducer.VerifyAccount>(encodedArgs),
                 "VerifyLogin" => BSATNHelpers.Decode<Reducer.VerifyLogin>(encodedArgs),
                 var reducer => throw new ArgumentOutOfRangeException("Reducer", $"Unknown reducer {reducer}")
             };
@@ -471,7 +471,7 @@ namespace SpacetimeDB.Types
                 Reducer.RegisterUser args => Reducers.InvokeRegisterUser(eventContext, args),
                 Reducer.RequestLoginCode args => Reducers.InvokeRequestLoginCode(eventContext, args),
                 Reducer.UpdateProfile args => Reducers.InvokeUpdateProfile(eventContext, args),
-                Reducer.VerifyEmail args => Reducers.InvokeVerifyEmail(eventContext, args),
+                Reducer.VerifyAccount args => Reducers.InvokeVerifyAccount(eventContext, args),
                 Reducer.VerifyLogin args => Reducers.InvokeVerifyLogin(eventContext, args),
                 _ => throw new ArgumentOutOfRangeException("Reducer", $"Unknown reducer {reducer}")
             };

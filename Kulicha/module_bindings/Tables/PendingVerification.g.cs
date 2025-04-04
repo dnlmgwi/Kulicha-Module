@@ -13,27 +13,27 @@ namespace SpacetimeDB.Types
 {
     public sealed partial class RemoteTables
     {
-        public sealed class PendingRegistrationHandle : RemoteTableHandle<EventContext, PendingRegistration>
+        public sealed class PendingVerificationHandle : RemoteTableHandle<EventContext, PendingVerification>
         {
-            protected override string RemoteTableName => "PendingRegistration";
+            protected override string RemoteTableName => "PendingVerification";
 
             public sealed class IdentityUniqueIndex : UniqueIndexBase<SpacetimeDB.Identity>
             {
-                protected override SpacetimeDB.Identity GetKey(PendingRegistration row) => row.Identity;
+                protected override SpacetimeDB.Identity GetKey(PendingVerification row) => row.Identity;
 
-                public IdentityUniqueIndex(PendingRegistrationHandle table) : base(table) { }
+                public IdentityUniqueIndex(PendingVerificationHandle table) : base(table) { }
             }
 
             public readonly IdentityUniqueIndex Identity;
 
-            internal PendingRegistrationHandle(DbConnection conn) : base(conn)
+            internal PendingVerificationHandle(DbConnection conn) : base(conn)
             {
                 Identity = new(this);
             }
 
-            protected override object GetPrimaryKey(PendingRegistration row) => row.Identity;
+            protected override object GetPrimaryKey(PendingVerification row) => row.Identity;
         }
 
-        public readonly PendingRegistrationHandle PendingRegistration;
+        public readonly PendingVerificationHandle PendingVerification;
     }
 }

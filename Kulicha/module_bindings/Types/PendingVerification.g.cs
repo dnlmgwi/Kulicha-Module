@@ -11,7 +11,7 @@ namespace SpacetimeDB.Types
 {
     [SpacetimeDB.Type]
     [DataContract]
-    public sealed partial class PendingRegistration
+    public sealed partial class PendingVerification
     {
         [DataMember(Name = "Identity")]
         public SpacetimeDB.Identity Identity;
@@ -24,7 +24,7 @@ namespace SpacetimeDB.Types
         [DataMember(Name = "ExpiresAt")]
         public SpacetimeDB.Timestamp ExpiresAt;
 
-        public PendingRegistration(
+        public PendingVerification(
             SpacetimeDB.Identity Identity,
             string? Username,
             string? Email,
@@ -39,7 +39,7 @@ namespace SpacetimeDB.Types
             this.ExpiresAt = ExpiresAt;
         }
 
-        public PendingRegistration()
+        public PendingVerification()
         {
         }
     }
