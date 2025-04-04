@@ -1,6 +1,18 @@
-﻿<Router AppAssembly="typeof(Program).Assembly">
+﻿@using Microsoft.AspNetCore.Components.Routing
+@using Kulicha.Components.Layout
+
+<Router AppAssembly="@typeof(Program).Assembly">
     <Found Context="routeData">
-        <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)"/>
-        <FocusOnNavigate RouteData="routeData" Selector="h1"/>
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(AuthLayout)"/>
     </Found>
+    <NotFound>
+        <LayoutView Layout="@typeof(AuthLayout)">
+            <p>Sorry, there's nothing at this address.</p>
+        </LayoutView>
+    </NotFound>
 </Router>
+
+@code {
+    [Parameter]
+    public string? View { get; set; }
+}
