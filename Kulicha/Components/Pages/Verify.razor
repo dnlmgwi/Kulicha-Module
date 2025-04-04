@@ -1,0 +1,188 @@
+@page "/verify"
+@using System.ComponentModel.DataAnnotations
+@using Kulicha.Services
+@using Microsoft.Extensions.Logging
+@using SpacetimeDB
+@using SpacetimeDB.Types
+@using Microsoft.AspNetCore.Components
+@inject SpacetimeDbService SpacetimeService
+@inject ILogger<Auth> Logger
+@inject NavigationManager NavigationManager
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-6 offset-md-3">
+            <div class="card">
+                <div class="card-body">
+                    @if (!string.IsNullOrEmpty(ErrorMessage))
+                    {
+                        <div class="alert alert-danger" role="alert">
+                            @ErrorMessage
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(SuccessMessage))
+                    {
+                        <div class="alert alert-success" role="alert">
+                            @SuccessMessage
+                        </div>
+                    }
+
+                    <h5 class="card-title">Verify Email</h5>
+                    <p class="text-muted">Enter the verification code sent to your email</p>
+                    <EditForm Model="@verifyModel" OnValidSubmit="HandleVerification" FormName="verify">
+                        <DataAnnotationsValidator/>
+                        <ValidationSummary/>
+
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <InputText id="email" @bind-Value="verifyModel.Email" type="email"
+                                       class="form-control"/>
+                            <ValidationMessage For="@(() => verifyModel.Email)"/>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="verificationCode" class="form-label">Verification Code</label>
+                            <InputText id="verificationCode" @bind-Value="verifyModel.VerificationCode"
+                                       class="form-control"/>
+                            <ValidationMessage For="@(() => verifyModel.VerificationCode)"/>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">Verify</button>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string ErrorMessage { get; set; } = "";
+    private string SuccessMessage { get; set; } = "";
+    private VerifyModel verifyModel = new VerifyModel();
+    
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "email")]
+    public string? Email { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Set up event handlers
+        SpacetimeService.OnConnect += HandleConnectionChange;
+        SpacetimeService.OnDisconnect += HandleConnectionChange;
+        SpacetimeService.OnErrorReceived += HandleSpacetimeError;
+        SpacetimeService.OnVerifySuccess += HandleVerifySuccess; // Add handler for successful registration
+
+        
+        // If email was provided as a query parameter, populate the form
+        if (!string.IsNullOrEmpty(Email))
+        {
+            verifyModel.Email = Email;
+        }
+        
+        await base.OnInitializedAsync();
+    }
+
+    private void HandleConnectionChange()
+    {
+        // Update UI when connection state changes
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async void HandleSpacetimeError(string errorType, string errorMessage)
+    {
+        Logger.LogInformation("SpacetimeDB Error ({ErrorType}): {ErrorMessage}", errorType, errorMessage);
+        ErrorMessage = $"Error ({errorType}): {errorMessage}";
+        SuccessMessage = "";
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task HandleVerification()
+    {
+        try
+        {
+            ErrorMessage = "";
+            SuccessMessage = "Processing verification...";
+            await InvokeAsync(StateHasChanged); // Update UI immediately
+            
+            Logger.LogInformation("Attempting email verification with code: {VerificationCode}", verifyModel.VerificationCode);
+
+            // Check if we're connected first
+            if (!SpacetimeService.IsConnected)
+            {
+                Logger.LogInformation("Not connected to SpacetimeDB. Verification will attempt to establish connection.");
+                SuccessMessage = "Connecting to server...";
+                await InvokeAsync(StateHasChanged);
+                // The service will attempt to connect when calling VerifyEmail
+            }
+
+            // Call the service method to verify the email
+            SpacetimeService.VerifyEmail(verifyModel.VerificationCode, verifyModel.Email);
+
+            // Provide feedback to the user that the request was sent
+            SuccessMessage = "Verification request sent. Processing...";
+            await InvokeAsync(StateHasChanged);
+            
+            // Wait a moment before redirecting to ensure the user sees the success message
+            await Task.Delay(2000);
+            
+            // Redirect to the home page
+            NavigationManager.NavigateTo("/", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Verification failed: {ex.Message}";
+            Logger.LogInformation(ex, "Error during email verification submission");
+            SuccessMessage = "";
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async void HandleVerifySuccess(string email)
+    {
+        Logger.LogInformation("Verification successful for user: {email}", email);
+        
+        // Update UI with success message
+        ErrorMessage = "";
+        SuccessMessage = $"Verification successful for {email}!";
+
+        // Keep the email value (don't reset the form before navigation)
+        // Note: This line was redundant: verifyModel.Email = verifyModel.Email;
+        
+        await InvokeAsync(StateHasChanged);
+        
+        // Wait a moment before redirecting to ensure the user sees the success message
+        await Task.Delay(2000);
+        
+        // Redirect to the Auth page with the verify view
+        // Use NavigateTo with forceLoad:true to ensure a full page reload
+        // This prevents the NavigationException that occurs when trying to navigate within a component
+        NavigationManager.NavigateTo("/login", forceLoad: true);
+        
+        // Only reset the form after navigation has been triggered
+        // This ensures the form data is still available during the navigation process
+        verifyModel = new VerifyModel();
+    }
+
+    // Implement IDisposable to unsubscribe from events
+    public void Dispose()
+    {
+        SpacetimeService.OnConnect -= HandleConnectionChange;
+        SpacetimeService.OnDisconnect -= HandleConnectionChange;
+        SpacetimeService.OnErrorReceived -= HandleSpacetimeError;
+        SpacetimeService.OnVerifySuccess -= HandleVerifySuccess; // Unsubscribe from verification success event
+        GC.SuppressFinalize(this); // Standard practice in Dispose pattern
+    }
+
+    public class VerifyModel {
+        [Required]
+        [EmailAddress]
+        [StringLength(254)] // Standard email max length
+        public string Email { get; set; } = "";
+
+        [Required]
+        [StringLength(6, MinimumLength = 6, ErrorMessage = "Verification code must be 6 characters")] // Assuming 6 char code
+        [RegularExpression(@"^[a-zA-Z0-9]+$", ErrorMessage = "Verification code can only contain letters and numbers")]
+        public string VerificationCode { get; set; } = "";
+    }
+}
