@@ -18,9 +18,13 @@ public class SpacetimeDbService : IHostedService, IDisposable {
     public event Action<User>? OnProfileReceived; // Event specifically for profile data
     public event Action<string, string>? OnErrorReceived; // Event for errors (type, message)
     public event Action<string>? OnRegisterSuccess; // Event for successful registration
-    // ------------------------------------
 
-    public SpacetimeDbService(ILogger<SpacetimeDbService> logger)
+    public event Action<string>? OnVerifySuccess; // Event for successful registration
+
+
+        // ------------------------------------
+
+        public SpacetimeDbService(ILogger<SpacetimeDbService> logger)
     {
         _logger = logger;
         // Initialize AuthToken here or ensure it's done before service starts
@@ -536,7 +540,8 @@ public class SpacetimeDbService : IHostedService, IDisposable {
         {
             case Status.Committed:
                 _logger.LogInformation("VerifyEmail reducer committed successfully with code {Code}.", ctx.Event.Status);
-                // User data update (IsEmailVerified=true) will arrive via User_OnUpdate
+                    // User data update (IsEmailVerified=true) will arrive via User_OnUpdate
+                OnVerifySuccess?.Invoke(email);
                 break;
             case Status.Failed:
                 _logger.LogInformation("VerifyEmail reducer failed with code: {Error}", ctx.Event.Status);
