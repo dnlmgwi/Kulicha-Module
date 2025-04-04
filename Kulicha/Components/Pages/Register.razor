@@ -3,6 +3,7 @@
 @using Kulicha.Services
 @using Microsoft.Extensions.Logging
 @using SpacetimeDB
+@using SpacetimeDB.Types
 @inject SpacetimeDbService SpacetimeService
 @inject ILogger<Auth> Logger
 
@@ -151,14 +152,14 @@
     }
 
     // New handler for receiving errors from SpacetimeDBService
-    private async void HandleSpacetimeError(string errorType, string errorMessage)
+    private void HandleSpacetimeError(string errorType, string errorMessage)
     {
         Logger.LogInformation("SpacetimeDB Error ({ErrorType}): {ErrorMessage}", errorType, errorMessage);
         ErrorMessage = $"Error ({errorType}): {errorMessage}";
         // Decide how to handle different errors, e.g., clear success message
         SuccessMessage = "";
         // Potentially switch view based on error, e.g., back to login on auth failure
-        await InvokeAsync(StateHasChanged);
+        InvokeAsync(StateHasChanged);
     }
 
     private async Task LoadProfile()
@@ -307,7 +308,7 @@
             Logger.LogInformation("Attempting email verification with code: {VerificationCode}", verifyModel.VerificationCode);
 
             // Assume SpacetimeDBService takes care of sending the command
-            SpacetimeService.VerifyEmail(verifyModel.VerificationCode, verifyModel.Email);
+            SpacetimeService.VerifyAccount(verifyModel.VerificationCode);
 
             // Again, we assume success for now. Backend should confirm.
             // The SpacetimeDBService should receive confirmation and potentially trigger login/identity.
@@ -494,58 +495,5 @@
         [EmailAddress]
         [StringLength(254)]
         public string Email { get; set; } = ""; // Allow email update?
-
-// [Required]
-// [Range(-90.0, 90.0, ErrorMessage = "Latitude must be between -90 and 90")]
-// public double Latitude { get; set; } = 0;
-//
-// [Required]
-// [Range(-180.0, 180.0, ErrorMessage = "Longitude must be between -180 and 180")]
-// public double Longitude { get; set; } = 0;
-//
-// [Required]
-// [StringLength(200, MinimumLength = 5, ErrorMessage = "Address should be between 5 and 200 characters")]
-// public string Address { get; set; } = "";
-//
-// [Required]
-// [StringLength(100, MinimumLength = 2, ErrorMessage = "City should be between 2 and 100 characters")]
-// public string City { get; set; } = "";
-//
-// [Required]
-// [StringLength(100, MinimumLength = 2, ErrorMessage = "State/Province should be between 2 and 100 characters")]
-// public string State { get; set; } = "";
-//
-// [Required]
-// [StringLength(100, MinimumLength = 2, ErrorMessage = "Country should be between 2 and 100 characters")]
-// public string Country { get; set; } = "";
-//
-// [Required]
-// [StringLength(20, MinimumLength = 3, ErrorMessage = "Postal Code should be between 3 and 20 characters")]
-// public string PostalCode { get; set; } = "";
     }
-
-// --- SpacetimeDB Type Placeholder ---
-// Replace this with the actual User type definition from your SpacetimeDB generated code
-// This is just a placeholder to make the component compile
-    public class User {
-        public string Username { get; set; } = string.Empty;
-        public string Email { get; set; } = string.Empty;
-        public string Role { get; set; } = string.Empty; // Or enum/int if that's how it's defined
-// public Location Location { get; set; } = new Location();
-// // Add other relevant fields: IdentityId, IsVerified, etc.
-        public bool IsVerified { get; set; }
-    }
-
-// public class Location {
-// public double Latitude { get; set; }
-// public double Longitude { get; set; }
-// public string Address { get; set; } = string.Empty;
-// public string City { get; set; } = string.Empty;
-// public string State { get; set; } = string.Empty;
-// public string Country { get; set; } = string.Empty;
-// public string PostalCode { get; set; } = string.Empty;
-// }
-
-// Need to update SpacetimeDBService interface/implementation based on usage here
-// Example placeholder for SpacetimeDBService methods used
 }
