@@ -1,4 +1,5 @@
 @page "/"
+@rendermode InteractiveServer
 @using System.ComponentModel.DataAnnotations
 @using Kulicha.Services
 @using Microsoft.Extensions.Logging
@@ -52,34 +53,70 @@
             }
 
             <h2 class="mb-6 text-center text-2xl font-bold text-gray-900">
-                Login
+                @(!IsVerifyingLogin ? "Login" : "Verify Login")
             </h2>
 
-            @* Login Form *@
-            <EditForm Model="@loginModel" OnValidSubmit="HandleLogin" FormName="loginForm" class="space-y-6">
-                <DataAnnotationsValidator/>
-                @* ValidationSummary can be styled or placed differently if needed *@
-                <ValidationSummary class="mb-4 text-sm text-red-600"/>
+            @if (!IsVerifyingLogin)
+            {
+                @* Login Form *@
+                <EditForm Model="@loginModel" OnValidSubmit="HandleLogin" FormName="loginForm" class="space-y-6">
+                    <DataAnnotationsValidator/>
+                    @* ValidationSummary can be styled or placed differently if needed *@
+                    <ValidationSummary class="mb-4 text-sm text-red-600"/>
 
-                <div>
-                    <label for="email" class="block text-sm font-medium text-gray-700">
-                        Email address
-                    </label>
-                    <div class="mt-1">
-                        <InputText id="email" @bind-Value="loginModel.Email" type="email" required
-                                   class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"/>
-                        <ValidationMessage For="@(() => loginModel.Email)" class="mt-1 text-sm text-red-600"/>
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-gray-700">
+                            Email address
+                        </label>
+                        <div class="mt-1">
+                            <InputText id="email" @bind-Value="loginModel.Email" type="email" required
+                                       class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"/>
+                            <ValidationMessage For="@(() => loginModel.Email)" class="mt-1 text-sm text-red-600"/>
+                        </div>
                     </div>
-                </div>
 
-                <div>
-                    <button type="submit"
-                            class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-                            disabled="@(!string.IsNullOrEmpty(SuccessMessage) && SuccessMessage.Contains("Processing"))"> @* Disable while processing *@
-                        Login
-                    </button>
-                </div>
-            </EditForm>
+                    <div>
+                        <button type="submit"
+                                class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                                disabled="@(!string.IsNullOrEmpty(SuccessMessage) && SuccessMessage.Contains("Processing"))"> @* Disable while processing *@
+                            Login
+                        </button>
+                    </div>
+                </EditForm>
+            }
+            else
+            {
+                @* Verification Form *@
+                <EditForm Model="@verifyModel" OnValidSubmit="HandleVerification" FormName="verifyForm" class="space-y-6">
+                    <DataAnnotationsValidator/>
+                    <ValidationSummary class="mb-4 text-sm text-red-600"/>
+                    
+                    <div>
+                        <label for="verification-code" class="block text-sm font-medium text-gray-700">
+                            Verification Code
+                        </label>
+                        <div class="mt-1">
+                            <InputText id="verification-code" @bind-Value="verifyModel.VerificationCode" required
+                                       class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                       placeholder="Enter the 6-digit code"/>
+                            <ValidationMessage For="@(() => verifyModel.VerificationCode)" class="mt-1 text-sm text-red-600"/>
+                        </div>
+                        <p class="mt-1 text-xs text-gray-500">A verification code has been sent to @verifyModel.Email</p>
+                    </div>
+
+                    <div class="flex space-x-3">
+                        <button type="submit"
+                                class="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                                disabled="@(!string.IsNullOrEmpty(SuccessMessage) && SuccessMessage.Contains("Verifying"))">
+                            Verify
+                        </button>
+                        <button type="button" @onclick="() => SwitchView(false)"
+                                class="flex-1 flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            Back
+                        </button>
+                    </div>
+                </EditForm>
+            }
 
             <div class="mt-6">
                 <div class="relative">
@@ -129,25 +166,25 @@
 
 
 @code {
-    // Define view states for the component
-    private enum AuthView {
-        Login,
-        Verify // Keep Verify if used elsewhere, although not rendered in this snippet
-    }
-
-    private AuthView CurrentView { get; set; } = AuthView.Login;
+    // Use a boolean flag to control form visibility instead of enum
+    private bool IsVerifyingLogin { get; set; } = false;
+    
     [Parameter]
     [SupplyParameterFromQuery(Name = "view")]
     public string? View { get; set; }
 
     protected override void OnParametersSet()
     {
-        // Keep existing logic for potentially setting view from query param
+        // Handle query parameter for view
         if (!string.IsNullOrEmpty(View))
         {
-            if (Enum.TryParse<AuthView>(View, true, out var view))
+            if (View.Equals("verify", StringComparison.OrdinalIgnoreCase))
             {
-                CurrentView = view;
+                IsVerifyingLogin = true;
+            }
+            else if (View.Equals("login", StringComparison.OrdinalIgnoreCase))
+            {
+                IsVerifyingLogin = false;
             }
         }
         base.OnParametersSet();
@@ -155,7 +192,7 @@
 
     private string ErrorMessage { get; set; } = "";
     private string SuccessMessage { get; set; } = "";
-    private bool IsAuthenticated => SpacetimeService.IsConnected && SpacetimeService.LocalIdentity != null;
+    private bool IsAuthenticated => SpacetimeService.IsConnected && SpacetimeService.LocalIdentity != null && CurrentUser != null;
     private User? CurrentUser { get; set; } // Use nullable User type
 
     // Models for the different forms
@@ -166,20 +203,11 @@
     // --- LifeCycle Methods ---
     protected override async Task OnInitializedAsync()
     {
-        // Keep existing Query Parameter logic
-        if (!string.IsNullOrEmpty(View))
-        {
-            if (Enum.TryParse<AuthView>(View, true, out var view))
-            {
-                CurrentView = view;
-            }
-        }
-
         // Subscribe to events
         SpacetimeService.OnConnect += HandleConnectionChange;
         SpacetimeService.OnDisconnect += HandleConnectionChange;
         SpacetimeService.OnIdentityReceived += HandleIdentityReceived;
-        //SpacetimeService.OnProfileReceived += HandleProfileReceived; // Assuming you have this event
+        SpacetimeService.OnProfileReceived += HandleProfileReceived; // Subscribe to profile events
         SpacetimeService.OnErrorReceived += HandleSpacetimeError;
         SpacetimeService.OnVerifyLoginSuccess += HandleLoginSuccess;
 
@@ -205,7 +233,7 @@
         else
         {
             Logger.LogInformation("Not authenticated. Resetting view to Login.");
-            CurrentView = AuthView.Login; // Ensure view is Login if not authenticated
+            IsVerifyingLogin = false; // Ensure login form is shown if not authenticated
             CurrentUser = null; // Clear user data
         }
         InvokeAsync(StateHasChanged); // Ensure UI reflects the connection state change
@@ -246,16 +274,21 @@
         InvokeAsync(StateHasChanged);
     }
 
-    // Assuming you have an event like this firing from the service after RequestLoginCode is processed
-    private async void HandleLoginSuccess(string email) // Adjust parameter based on what your event provides
+    // Triggered when the verification code is sent successfully
+    private void HandleLoginSuccess(string email) // Receives email from the event
     {
         Logger.LogInformation("Login request processed for: {Email}. Verification code sent.", email);
         ErrorMessage = "";
         SuccessMessage = $"Verification code sent to {email}. Please check your email.";
-        // Optional: Switch to Verify view if you have one
-        // CurrentView = AuthView.Verify;
-        // verifyModel.Email = email; // Pre-fill email for verify form
-        await InvokeAsync(StateHasChanged);
+        
+        // Make sure to set the email in the verify model
+        verifyModel = new VerifyModel { Email = email };
+        
+        // Show verification form
+        IsVerifyingLogin = true;
+        
+        // Ensure UI updates to show verification form
+        InvokeAsync(StateHasChanged);
     }
 
     private async void HandleSpacetimeError(string errorType, string errorMessage)
@@ -375,10 +408,10 @@
         await InvokeAsync(StateHasChanged); // Not strictly necessary here if events handle it
     }
 
-    private void SwitchView(AuthView view)
+    private void SwitchView(bool showVerifyForm)
     {
-        // Simplified: Just set the view and update state. Let rendering logic handle auth checks.
-        CurrentView = view;
+        // Simplified: Just set the flag and update state
+        IsVerifyingLogin = showVerifyForm;
         ErrorMessage = ""; // Clear messages on view switch
         SuccessMessage = "";
         InvokeAsync(StateHasChanged); // Ensure UI updates
@@ -413,9 +446,9 @@
         SpacetimeService.OnConnect -= HandleConnectionChange;
         SpacetimeService.OnDisconnect -= HandleConnectionChange;
         SpacetimeService.OnIdentityReceived -= HandleIdentityReceived;
-        //SpacetimeService.OnProfileReceived -= HandleProfileReceived;
+        SpacetimeService.OnProfileReceived -= HandleProfileReceived;
         SpacetimeService.OnErrorReceived -= HandleSpacetimeError;
-        // SpacetimeService.OnVerifyLoginSuccess -= HandleLoginSuccess;
+        SpacetimeService.OnVerifyLoginSuccess -= HandleLoginSuccess;
         GC.SuppressFinalize(this);
     }
 
