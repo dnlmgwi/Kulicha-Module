@@ -2,12 +2,8 @@
 @using System.ComponentModel.DataAnnotations
 @using Kulicha.Services
 @using Microsoft.Extensions.Logging
-@using SpacetimeDB
-@using SpacetimeDB.Types
-@using Microsoft.AspNetCore.Components
 @inject SpacetimeDbService SpacetimeService
 @inject ILogger<Auth> Logger
-@inject NavigationManager NavigationManager
 
 <div class="container mt-4">
     <div class="row">
@@ -71,8 +67,7 @@
         SpacetimeService.OnConnect += HandleConnectionChange;
         SpacetimeService.OnDisconnect += HandleConnectionChange;
         SpacetimeService.OnErrorReceived += HandleSpacetimeError;
-        SpacetimeService.OnVerifySuccess += HandleVerifySuccess; // Add handler for successful registration
-
+        SpacetimeService.OnVerifySuccess += HandleVerifySuccess; // Add handler for successful verification
 
         // If email was provided as a query parameter, populate the form
         if (!string.IsNullOrEmpty(Email))
@@ -157,7 +152,7 @@
         // Redirect to the Auth page with the verify view
         // Use NavigateTo with forceLoad:true to ensure a full page reload
         // This prevents the NavigationException that occurs when trying to navigate within a component
-        NavigationManager.NavigateTo("/login", forceLoad: true);
+        // NavigationManager.NavigateTo("/login", forceLoad: true);
 
         // Only reset the form after navigation has been triggered
         // This ensures the form data is still available during the navigation process
@@ -183,6 +178,6 @@
         [Required]
         [StringLength(6, MinimumLength = 6, ErrorMessage = "Verification code must be 6 characters")] // Assuming 6 char code
         [RegularExpression(@"^[a-zA-Z0-9]+$", ErrorMessage = "Verification code can only contain letters and numbers")]
-        public string VerificationCode { get; set; } = "9AJS6S";
+        public string VerificationCode { get; set; } = "A8RTTO";
     }
 }
