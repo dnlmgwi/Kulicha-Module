@@ -438,8 +438,10 @@ namespace SpacetimeDB.Types
                 "GetMyProfile" => BSATNHelpers.Decode<Reducer.GetMyProfile>(encodedArgs),
                 "ListUsersByRole" => BSATNHelpers.Decode<Reducer.ListUsersByRole>(encodedArgs),
                 "RegisterUser" => BSATNHelpers.Decode<Reducer.RegisterUser>(encodedArgs),
+                "RequestLoginCode" => BSATNHelpers.Decode<Reducer.RequestLoginCode>(encodedArgs),
                 "UpdateProfile" => BSATNHelpers.Decode<Reducer.UpdateProfile>(encodedArgs),
                 "VerifyEmail" => BSATNHelpers.Decode<Reducer.VerifyEmail>(encodedArgs),
+                "VerifyLogin" => BSATNHelpers.Decode<Reducer.VerifyLogin>(encodedArgs),
                 var reducer => throw new ArgumentOutOfRangeException("Reducer", $"Unknown reducer {reducer}")
             };
         }
@@ -467,8 +469,10 @@ namespace SpacetimeDB.Types
                 Reducer.GetMyProfile args => Reducers.InvokeGetMyProfile(eventContext, args),
                 Reducer.ListUsersByRole args => Reducers.InvokeListUsersByRole(eventContext, args),
                 Reducer.RegisterUser args => Reducers.InvokeRegisterUser(eventContext, args),
+                Reducer.RequestLoginCode args => Reducers.InvokeRequestLoginCode(eventContext, args),
                 Reducer.UpdateProfile args => Reducers.InvokeUpdateProfile(eventContext, args),
                 Reducer.VerifyEmail args => Reducers.InvokeVerifyEmail(eventContext, args),
+                Reducer.VerifyLogin args => Reducers.InvokeVerifyLogin(eventContext, args),
                 _ => throw new ArgumentOutOfRangeException("Reducer", $"Unknown reducer {reducer}")
             };
         }
