@@ -1,9 +1,11 @@
 @page "/verify"
+@rendermode InteractiveServer
 @using System.ComponentModel.DataAnnotations
 @using Kulicha.Services
 @using Microsoft.Extensions.Logging
 @inject SpacetimeDbService SpacetimeService
 @inject ILogger<Auth> Logger
+@inject NavigationManager NavigationManager
 
 <div class="container mt-4">
     <div class="row">
@@ -149,10 +151,19 @@
         // Wait a moment before redirecting to ensure the user sees the success message
         await Task.Delay(2000);
 
-        // Redirect to the Auth page with the verify view
-        // Use NavigateTo with forceLoad:true to ensure a full page reload
-        // This prevents the NavigationException that occurs when trying to navigate within a component
-        // NavigationManager.NavigateTo("/login", forceLoad: true);
+        try
+        {
+            // Redirect to the Auth page with the verify view
+            // Use NavigateTo with forceLoad:true to ensure a full page reload
+            // This prevents the NavigationException that occurs when trying to navigate within a component
+            NavigationManager.NavigateTo("/", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "";
+            Logger.LogInformation(ex, "Redirecting");
+            SuccessMessage = "";
+        }
 
         // Only reset the form after navigation has been triggered
         // This ensures the form data is still available during the navigation process
@@ -173,11 +184,11 @@
         [Required]
         [EmailAddress]
         [StringLength(254)] // Standard email max length
-        public string Email { get; set; } = "admin@gmail.com";
+        public string Email { get; set; } = "";
 
         [Required]
         [StringLength(6, MinimumLength = 6, ErrorMessage = "Verification code must be 6 characters")] // Assuming 6 char code
         [RegularExpression(@"^[a-zA-Z0-9]+$", ErrorMessage = "Verification code can only contain letters and numbers")]
-        public string VerificationCode { get; set; } = "9AJS6S";
+        public string VerificationCode { get; set; } = "";
     }
 }
