@@ -32,7 +32,7 @@ public enum UserRole {
 /// Table for storing pending registrations that need email verification
 /// </summary>
 [Table]
-public partial class PendingRegistration {
+public partial class PendingVerification {
     [PrimaryKey]
     public Identity Identity;
 
@@ -187,7 +187,7 @@ public static partial class AuthModule {
         var oneDay = new TimeDuration { Microseconds = 86400000000 };
 
         // Store pending registration
-        var pendingReg = new PendingRegistration
+        var pendingReg = new PendingVerification
         {
             Identity = identity,
             Username = username,
@@ -197,7 +197,7 @@ public static partial class AuthModule {
             ExpiresAt = ctx.Timestamp + oneDay // Expires in 24 hours
         };
 
-        ctx.Db.PendingRegistration.Insert(pendingReg);
+        ctx.Db.PendingVerification.Insert(pendingReg);
 
         LogInfo(ctx, identity, "UserRegistrationRequested",
         $"User registration requested with username {username}, email {email}, role {role}");
@@ -211,41 +211,32 @@ public static partial class AuthModule {
     /// Verify email with verification code to complete registration
     /// </summary>
     [Reducer]
-    public static void VerifyEmail(ReducerContext ctx, string verificationCode)
+    public static void VerifyAccount(ReducerContext ctx, string verificationCode)
     {
         Identity identity = ctx.Sender;
 
         // Get pending registration
-        var pendingReg = ctx.Db.PendingRegistration.Identity.Find(identity);
+        var pendingVerification = ctx.Db.PendingVerification.Identity.Find(identity) ?? throw new Exception("No pending Verification found.");
 
-        if (pendingReg == null)
-        {
-            Log.Error("No pending registration found."); //TODO Notify User
-            return;
-        }
-
-        if (pendingReg?.ExpiresAt < ctx.Timestamp)
+        if (pendingVerification?.ExpiresAt < ctx.Timestamp)
         {
             // Check if code has expired
-            ctx.Db.PendingRegistration.Delete(pendingReg);
-            Log.Error("Verification code has expired. Please register again."); //TODO Notify User
-            return;
+            ctx.Db.PendingVerification.Delete(pendingVerification);
+            throw new Exception("Verification code has expired. Please register again."); //TODO Notify User
         }
 
-        // Verify the code
-        if (pendingReg?.VerificationCode != verificationCode)
-        {
-            Log.Error("Invalid verification code."); //TODO Notify User
-            return;
+        if (pendingVerification?.VerificationCode != verificationCode)
+        {   // Verify the code
+            throw new Exception("Invalid verification code."); //TODO Notify User
         }
 
         // Create the user
         var user = new User
         {
             Identity = identity,
-            Username = pendingReg!.Username,
-            Email = pendingReg.Email,
-            Role = pendingReg.Role,
+            Username = pendingVerification!.Username,
+            Email = pendingVerification.Email,
+            Role = pendingVerification.Role,
             IsEmailVerified = true,
             RegisteredAt = ctx.Timestamp
         };
@@ -263,7 +254,7 @@ public static partial class AuthModule {
         ctx.Db.AuthSession.Insert(authSession);
 
         // Remove pending registration
-        ctx.Db.PendingRegistration.Delete(pendingReg);
+        ctx.Db.PendingVerification.Delete(pendingVerification);
 
         LogInfo(ctx, identity, "UserRegistrationCompleted",
         $"User registration completed for {user.Username} with role {user.Role}");
@@ -279,15 +270,17 @@ public static partial class AuthModule {
     {
         Identity identity = ctx.Sender;
 
-
         // Validate email format
         if (!IsValidEmail(email))
+        {
             Log.Error("Invalid email format.");
+            throw new Exception("Invalid email format.");
+        }
 
         // Check if user exists with this email
-        var user = ctx.Db.User.Identity.Find(identity);
-        if (user == null)
-            Log.Error("No account found with this email.");
+        var user = ctx.Db.User.Identity.Find(identity) ?? throw new Exception("No account found with this email.");
+
+        Log.Info($"Found User! {user}");
 
         // Generate a verification code
         string verificationCode = GenerateVerificationCode();
@@ -296,7 +289,7 @@ public static partial class AuthModule {
         var oneDay = new TimeDuration { Microseconds = 86400000000 };
 
         // Store pending registration
-        var pendingReg = new PendingRegistration
+        var pendingVerification = new PendingVerification
         {
             Identity = identity,
             Email = email,
@@ -305,19 +298,19 @@ public static partial class AuthModule {
         };
 
         // Remove any existing pending registration for this identity
-        var existingPending = ctx.Db.PendingRegistration.Identity.Find(identity);
+        var existingPending = ctx.Db.PendingVerification.Identity.Find(identity);
+
         if (existingPending != null)
         {
-            ctx.Db.PendingRegistration.Delete(existingPending);
+            ctx.Db.PendingVerification.Delete(existingPending);
         }
 
-        ctx.Db.PendingRegistration.Insert(pendingReg);
+        ctx.Db.PendingVerification.Insert(pendingVerification);
 
         LogInfo(ctx, identity, "LoginVerificationRequested",
         $"Login verification requested for {email}");
 
-        // In a real app, you would send an email with the verification code
-        // For now, we just return it to the user
+        // TODO: email with the verification code
         Log.Info($"Verification code sent! {verificationCode}");
     }
 
@@ -330,7 +323,7 @@ public static partial class AuthModule {
         Identity identity = ctx.Sender;
 
         // Get pending registration
-        var pendingReg = ctx.Db.PendingRegistration.Identity.Find(identity);
+        var pendingReg = ctx.Db.PendingVerification.Identity.Find(identity);
 
         if (pendingReg == null)
         {
@@ -340,7 +333,7 @@ public static partial class AuthModule {
 
         if (pendingReg.ExpiresAt < ctx.Timestamp)
         {
-            ctx.Db.PendingRegistration.Delete(pendingReg);
+            ctx.Db.PendingVerification.Delete(pendingReg);
             LogInfo(ctx, identity, "LoginFailed", "Verification code expired");
             Log.Info("Verification code has expired. Please request a new code.");
         }
@@ -357,7 +350,7 @@ public static partial class AuthModule {
         if (user == null)
         {
             // This should not happen since we checked in RequestLoginCode, but just in case
-            ctx.Db.PendingRegistration.Delete(pendingReg);
+            ctx.Db.PendingVerification.Delete(pendingReg);
             LogInfo(ctx, identity, "LoginFailed", "User no longer exists");
             Log.Info( "Account not found. Please contact support.");
         }
@@ -393,7 +386,7 @@ public static partial class AuthModule {
         }
 
         // Clean up the pending registration
-        ctx.Db.PendingRegistration.Delete(pendingReg);
+        ctx.Db.PendingVerification.Delete(pendingReg);
 
         LogInfo(ctx, identity, "UserLogin", $"User {user.Email} logged in successfully");
         Log.Info("Login successful!");
