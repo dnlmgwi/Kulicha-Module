@@ -117,7 +117,7 @@
             // SpacetimeService.OnProfileReceived += HandleProfileReceived;
             SpacetimeService.OnErrorReceived += HandleSpacetimeError; // Add handler for errors
             SpacetimeService.OnRegisterSuccess += HandleRegisterSuccess; // Add handler for successful registration
-            
+
             // Check initial state
             HandleConnectionChange();
 
@@ -239,7 +239,7 @@
             ErrorMessage = "";
             SuccessMessage = "Processing registration...";
             await InvokeAsync(StateHasChanged); // Update UI immediately to show processing message
-            
+
             Logger.LogInformation("Attempting to register user: {Username}", registerModel.Username);
 
             // Check if we're connected first
@@ -253,16 +253,16 @@
             // Call the service method to register the user
             // The service will attempt to connect if not already connected
             SpacetimeService.RegisterUser(
-                registerModel.Username,
-                registerModel.Email,
-                registerModel.Role
+            registerModel.Username,
+            registerModel.Email,
+            registerModel.Role
             );
 
             // Provide feedback to the user that the request was sent
             // The actual success will be handled by the HandleRegisterSuccess method
             SuccessMessage = "Registration request sent. Processing...";
             await InvokeAsync(StateHasChanged);
-            
+
             // Note: We don't redirect here anymore - we'll wait for the callback
         }
         catch (Exception ex)
@@ -273,32 +273,31 @@
             await InvokeAsync(StateHasChanged);
         }
     }
-    
+
     private async void HandleRegisterSuccess(string username)
     {
         Logger.LogInformation("Registration successful for user: {Username}", username);
-        
+
         // Update UI with success message
         ErrorMessage = "";
         SuccessMessage = $"Registration successful for {username}! You should receive a verification email shortly.";
-        
+
         // Set verification as needed and prepare verification form
         IsVerificationNeeded = true;
         verifyModel.Email = registerModel.Email;
-        
-       
-        
+
+
         await InvokeAsync(StateHasChanged);
-        
+
         // Wait a moment before redirecting to ensure the user sees the success message
         await Task.Delay(2000);
-        
+
         // Redirect to the Auth page with the verify view
         // Use NavigateTo with forceLoad:true to ensure a full page reload
         // This prevents the NavigationException that occurs when trying to navigate within a component
         NavigationManager.NavigateTo("/verify", forceLoad: true);
 
-         // Reset the register model for a fresh form if the user returns
+        // Reset the register model for a fresh form if the user returns
         registerModel = new RegisterModel();
     }
 
