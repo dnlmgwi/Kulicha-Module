@@ -1,9 +1,8 @@
-@page "/login"
+@page "/"
 @using System.ComponentModel.DataAnnotations
 @using Kulicha.Services
 @using Microsoft.Extensions.Logging
 @using SpacetimeDB
-@using SpacetimeDB.Types
 @inject SpacetimeDbService SpacetimeService
 @inject ILogger<Auth> Logger
 
@@ -11,16 +10,6 @@
     <div class="row">
         <div class="col-md-6 offset-md-3">
             <div class="card">
-                <div class="card-header">
-                    <ul class="nav nav-tabs card-header-tabs">
-                        <li class="nav-item">
-                            <button class="nav-link active">Login</button>
-                        </li>
-                        <li class="nav-item">
-                            <button class="nav-link" href="register">Register</button>
-                        </li>
-                    </ul>
-                </div>
                 <div class="card-body">
                     @if (!string.IsNullOrEmpty(ErrorMessage))
                     {
@@ -37,7 +26,17 @@
                     }
 
                     <h5 class="card-title">Login</h5>
-                    <p class="text-muted">Already have an account? Log in here</p>
+                    <EditForm Model="@loginModel" OnValidSubmit="HandleLogin" FormName="register">
+                        <DataAnnotationsValidator/>
+                        <ValidationSummary/>
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <InputText id="email" @bind-Value="loginModel.Email" type="email"
+                                       class="form-control"/>
+                            <ValidationMessage For="@(() => loginModel.Email)"/>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Login</button>
+                    </EditForm>
                     <p class="text-muted">Login is handled automatically when connecting to SpacetimeDB with your credentials.</p>
                     <p class="text-muted">If you don't have credentials yet, please register.</p>
 
@@ -61,9 +60,7 @@
     // Define view states for the component
     private enum AuthView {
         Login,
-        Register,
-        Verify,
-        Profile
+        Verify
     }
 
     private AuthView CurrentView { get; set; } = AuthView.Login;
@@ -84,14 +81,13 @@
     }
     private string ErrorMessage { get; set; } = "";
     private string SuccessMessage { get; set; } = "";
-    private bool IsVerificationNeeded { get; set; } = false; // Consider if this state is still needed or if backend drives it
     private bool IsAuthenticated => SpacetimeService.IsConnected && SpacetimeService.LocalIdentity != null;
     private User? CurrentUser { get; set; } // Use nullable User type
 
     // Models for the different forms
-    private RegisterModel registerModel = new RegisterModel();
-    private VerifyModel verifyModel = new VerifyModel();
+    private LoginModel loginModel = new LoginModel();
     private ProfileModel profileModel = new ProfileModel();
+    private VerifyModel verifyModel = new VerifyModel();
 
     protected override async Task OnInitializedAsync()
     {
@@ -108,6 +104,8 @@
             SpacetimeService.OnIdentityReceived += HandleIdentityReceived;
             // SpacetimeService.OnProfileReceived += HandleProfileReceived;
             SpacetimeService.OnErrorReceived += HandleSpacetimeError; // Add handler for errors
+            SpacetimeService.OnVerifyLoginSuccess += HandleLoginSuccess; // Add handler for successful registration
+
 
             // Check initial state
             HandleConnectionChange();
@@ -130,10 +128,74 @@
             Logger.LogInformation("Not authenticated. Resetting view to Login.");
             CurrentView = AuthView.Login;
             CurrentUser = null;
-            IsVerificationNeeded = false;
-            profileModel = new ProfileModel();
         }
         InvokeAsync(StateHasChanged);
+    }
+
+    private async Task HandleLogin()
+    {
+        try
+        {
+            ErrorMessage = "";
+            SuccessMessage = "Processing Login...";
+            await InvokeAsync(StateHasChanged); // Update UI immediately to show processing message
+
+            Logger.LogInformation("Attempting to Login user: {email}", loginModel.Email);
+
+            // Check if we're connected first
+            if (!SpacetimeService.IsConnected)
+            {
+                Logger.LogInformation("Not connected to SpacetimeDB. Registration will attempt to establish connection.");
+                SuccessMessage = "Connecting to server...";
+                await InvokeAsync(StateHasChanged);
+            }
+
+            // Call the service method to register the user
+            // The service will attempt to connect if not already connected
+            SpacetimeService.RequestLoginCode(
+            loginModel.Email
+            );
+
+            // Provide feedback to the user that the request was sent
+            // The actual success will be handled by the HandleRegisterSuccess method
+            SuccessMessage = "Login request sent. Processing...";
+            await InvokeAsync(StateHasChanged);
+
+            // Note: We don't redirect here anymore - we'll wait for the callback
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Registration failed: {ex.Message}";
+            Logger.LogInformation(ex, "Error during registration submission");
+            SuccessMessage = "";
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async void HandleLoginSuccess(string deviceId)
+    {
+        Logger.LogInformation("Login successful for user: {Username}", deviceId);
+
+        // Update UI with success message
+        ErrorMessage = "";
+        SuccessMessage = $"Login successful for {deviceId}! You should receive a verification email shortly.";
+
+
+        verifyModel.Email = loginModel.Email;
+
+
+        await InvokeAsync(StateHasChanged);
+
+        // Wait a moment before redirecting to ensure the user sees the success message
+        await Task.Delay(2000);
+
+        // Redirect to the Auth page with the verify view
+        // Use NavigateTo with forceLoad:true to ensure a full page reload
+        // This prevents the NavigationException that occurs when trying to navigate within a component
+        //NavigationManager.NavigateTo("/verify", forceLoad: true);
+
+        // Reset the register model for a fresh form if the user returns
+        loginModel = new LoginModel();
     }
 
     private void HandleIdentityReceived(Identity identity)
@@ -162,7 +224,7 @@
             // Country = CurrentUser.Location?.Country ?? "",
             // PostalCode = CurrentUser.Location?.PostalCode ?? ""
         };
-        SwitchView(AuthView.Profile);
+        SwitchView(AuthView.Login);
         InvokeAsync(StateHasChanged);
     }
 
@@ -209,13 +271,13 @@
     private void SwitchView(AuthView view)
     {
         // Only allow switching to Profile if authenticated and profile is loaded (or loading)
-        if (view == AuthView.Profile && !IsAuthenticated)
+        if (view == AuthView.Login && !IsAuthenticated)
         {
             Logger.LogWarning("Attempted to switch to Profile view while not authenticated.");
             CurrentView = AuthView.Login; // Redirect to login
         }
         // Only allow switching to Verify if verification is needed (might need better logic)
-        else if (view == AuthView.Verify && !IsVerificationNeeded)
+        else if (view == AuthView.Verify)
         {
             Logger.LogWarning("Attempted to switch to Verify view when verification is not marked as needed.");
             CurrentView = AuthView.Login;
@@ -245,56 +307,6 @@
     //     // SpacetimeService.Connect(); // Or similar method if available
     // }
 
-    private void HandleRegister()
-    {
-        try
-        {
-            ErrorMessage = "";
-            SuccessMessage = "";
-            Logger.LogInformation("Attempting to register user: {Username}", registerModel.Username);
-
-            // Assume SpacetimeDBService takes care of sending the command
-            // The service should expose a method like RegisterUser
-            SpacetimeService.RegisterUser(
-            registerModel.Username,
-            registerModel.Email,
-            registerModel.Role
-            // registerModel.Latitude,
-            // registerModel.Longitude,
-            // registerModel.Address,
-            // registerModel.City,
-            // registerModel.State,
-            // registerModel.Country,
-            // registerModel.PostalCode
-            );
-
-            // Important: We don't know if registration succeeded yet.
-            // The backend should send a response (e.g., success + verification needed, or failure).
-            // For now, we assume it will likely require verification.
-            SuccessMessage = "Registration request sent. If successful, you should receive a verification email.";
-            IsVerificationNeeded = true; // Assume verification is next step
-            SwitchView(AuthView.Verify);
-
-            // Pre-populate the verification form
-            // verifyModel.Latitude = registerModel.Latitude;
-            // verifyModel.Longitude = registerModel.Longitude;
-            // verifyModel.Address = registerModel.Address;
-            // verifyModel.City = registerModel.City;
-            // verifyModel.State = registerModel.State;
-            // verifyModel.Country = registerModel.Country;
-            // verifyModel.PostalCode = registerModel.PostalCode;
-
-            // Clear registration form after submission
-            registerModel = new RegisterModel();
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage = $"Registration failed: {ex.Message}";
-            Logger.LogInformation(ex, "Error during registration submission");
-            SuccessMessage = "";
-        }
-    }
-
     private void HandleVerification()
     {
         try
@@ -304,12 +316,12 @@
             Logger.LogInformation("Attempting email verification with code: {VerificationCode}", verifyModel.VerificationCode);
 
             // Assume SpacetimeDBService takes care of sending the command
-            SpacetimeService.VerifyEmail(verifyModel.VerificationCode, verifyModel.Email);
+            SpacetimeService.VerifyLogin(verifyModel.VerificationCode, verifyModel.Email);
 
             // Again, we assume success for now. Backend should confirm.
             // The SpacetimeDBService should receive confirmation and potentially trigger login/identity.
             SuccessMessage = "Verification request sent. If successful, you should be logged in shortly.";
-            IsVerificationNeeded = false; // Clear the flag
+            //IsVerificationNeeded = false; // Clear the flag
             SwitchView(AuthView.Login); // Go back to login, connection should establish identity now
 
             // Clear verification form
@@ -396,50 +408,11 @@
         GC.SuppressFinalize(this); // Standard practice in Dispose pattern
     }
 
-// --- Data model classes ---
-// (Keep these as they are, they look reasonable)
-    public class RegisterModel {
-        [Required]
-        [StringLength(32, MinimumLength = 3, ErrorMessage = "Username must be between 3 and 32 characters")]
-        [RegularExpression(@"^[a-zA-Z0-9_]+$", ErrorMessage = "Username can only contain letters, numbers, and underscores")]
-        public string Username { get; set; } = "";
-
+    public class LoginModel {
         [Required]
         [EmailAddress]
         [StringLength(254)] // Standard email max length
-        public string Email { get; set; } = "";
-
-        [Required]
-        [Range(0, 2, ErrorMessage = "Please select a valid role")]
-        public int Role { get; set; } = 0; // Default to Beneficiary
-
-// [Required]
-// [Range(-90.0, 90.0, ErrorMessage = "Latitude must be between -90 and 90")]
-// public double Latitude { get; set; } = 0;
-//
-// [Required]
-// [Range(-180.0, 180.0, ErrorMessage = "Longitude must be between -180 and 180")]
-// public double Longitude { get; set; } = 0;
-//
-// [Required]
-// [StringLength(200, MinimumLength = 5, ErrorMessage = "Address should be between 5 and 200 characters")]
-// public string Address { get; set; } = "";
-//
-// [Required]
-// [StringLength(100, MinimumLength = 2, ErrorMessage = "City should be between 2 and 100 characters")]
-// public string City { get; set; } = "";
-//
-// [Required]
-// [StringLength(100, MinimumLength = 2, ErrorMessage = "State/Province should be between 2 and 100 characters")]
-// public string State { get; set; } = "";
-//
-// [Required]
-// [StringLength(100, MinimumLength = 2, ErrorMessage = "Country should be between 2 and 100 characters")]
-// public string Country { get; set; } = "";
-//
-// [Required]
-// [StringLength(20, MinimumLength = 3, ErrorMessage = "Postal Code should be between 3 and 20 characters")]
-// public string PostalCode { get; set; } = "";
+        public string Email { get; set; } = "admin@gmail.com";
     }
 
     public class VerifyModel {
