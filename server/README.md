@@ -26,3 +26,9 @@ spacetime publish --project-path  ~/RiderProjects/Kulicha/server kulicha --serve
 ```bash
 spacetime publish --server local kulicha
 ```
+
+Start Server
+
+```bash
+spacetime start
+```
