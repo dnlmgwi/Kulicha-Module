@@ -369,7 +369,7 @@ public class SpacetimeDbService : IHostedService, IDisposable {
         }
     }
 
-    public async void VerifyEmail(string code, string email)
+    public async void VerifyAccount(string code)
     {
         // If not connected, attempt to establish connection first
         if (!_isConnected || _conn == null)
@@ -386,7 +386,7 @@ public class SpacetimeDbService : IHostedService, IDisposable {
                 // If still not connected after retry, report error
                 if (!_isConnected || _conn == null)
                 {
-                    _logger.LogWarning("Cannot VerifyEmail: Connection retry failed.");
+                    _logger.LogWarning("Cannot VerifyAccount: Connection retry failed.");
                     OnErrorReceived?.Invoke("Connection", "Failed to connect to SpacetimeDB. Please try again.");
                     return;
                 }
@@ -401,14 +401,14 @@ public class SpacetimeDbService : IHostedService, IDisposable {
         
         try
         {
-            _logger.LogInformation("Calling VerifyEmail reducer with code {Code}", code);
+            _logger.LogInformation("Calling VerifyAccount reducer with code {Code}", code);
             // Pass the verification code
-            _conn.Reducers.VerifyEmail(code);
+            _conn.Reducers.VerifyAccount(code);
         }
         catch (Exception ex)
         {
-            _logger.LogInformation(ex, "Error calling VerifyEmail reducer.");
-            OnErrorReceived?.Invoke("ReducerCall", $"Failed to call VerifyEmail: {ex.Message}");
+            _logger.LogInformation(ex, "Error calling VerifyAccount reducer.");
+            OnErrorReceived?.Invoke("ReducerCall", $"Failed to call VerifyAccountl: {ex.Message}");
         }
     }
 
@@ -580,7 +580,7 @@ public class SpacetimeDbService : IHostedService, IDisposable {
         // These are needed to get results/errors back from specific actions
         conn.Reducers.OnGetMyProfile += OnGetMyProfile;
         conn.Reducers.OnRegisterUser += OnRegisterUserCallback;
-        conn.Reducers.OnVerifyEmail += OnVerifyEmailCallback;
+        conn.Reducers.OnVerifyAccount += OnVerifyAccountCallback;
         conn.Reducers.OnUpdateProfile += OnUpdateProfileCallback;
         conn.Reducers.OnRequestLoginCode += OnRequestLoginCodeCallback;
         conn.Reducers.OnVerifyLogin += OnVerifyLoginCallback;
@@ -692,23 +692,24 @@ public class SpacetimeDbService : IHostedService, IDisposable {
     }
 
     // Callback for VerifyEmail
-    private void OnVerifyEmailCallback(ReducerEventContext ctx, string code) // Parameter is the verification code
+    private void OnVerifyAccountCallback(ReducerEventContext ctx, string code) // Parameter is the verification code
     {
         if (ctx.Event.CallerIdentity != _localIdentity) return;
 
         switch (ctx.Event.Status)
         {
             case Status.Committed:
-                _logger.LogInformation("VerifyEmail reducer committed successfully with code {Code}.", code);
+                _logger.LogInformation("VerifyAccount reducer committed successfully with code {Code}.", code);
                 // User data update (IsEmailVerified=true) will arrive via User_OnUpdate
                 // Extract email from the user record or use a stored value
                 var user = _conn?.Db.User.Identity.Find(ctx.Event.CallerIdentity);
+                _logger.LogInformation("Account Belongs to: {Error}", ctx.Event.CallerIdentity);
                 string email = user?.Email ?? "unknown";
                 OnVerifySuccess?.Invoke(email);
                 break;
             case Status.Failed:
-                _logger.LogInformation("VerifyEmail reducer failed: {Error}", ctx.Event.Status);
-                OnErrorReceived?.Invoke("VerifyEmail", $"Email verification failed: {ctx.Event.Status}");
+                _logger.LogInformation("VerifyAccount reducer failed: {Error}", ctx.Event.Status);
+                OnErrorReceived?.Invoke("VerifyAccount", $"Account verification failed: {ctx.Event.Status}");
                 break;
         }
     }
