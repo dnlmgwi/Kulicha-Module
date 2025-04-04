@@ -13,8 +13,7 @@ builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 
 // Add services to the container.
-builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 
 // Register the SpacetimeDB background service
 builder.Services.AddHostedService<SpacetimeDbService>();
@@ -36,8 +35,7 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseAntiforgery();
 
-app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
+app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 
 Console.WriteLine("Starting Web Application...");
 app.Run(); // This will now block, while the SpacetimeDBService runs in the background
