@@ -1,0 +1,546 @@
+@page "/login"
+@using System.ComponentModel.DataAnnotations
+@using Kulicha.Services
+@using Microsoft.Extensions.Logging
+@using SpacetimeDB
+@using SpacetimeDB.Types
+@inject SpacetimeDbService SpacetimeService
+@inject ILogger<Auth> Logger
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-6 offset-md-3">
+            <div class="card">
+                <div class="card-header">
+                    <ul class="nav nav-tabs card-header-tabs">
+                        <li class="nav-item">
+                            <button class="nav-link active">Login</button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" href="register">Register</button>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    @if (!string.IsNullOrEmpty(ErrorMessage))
+                    {
+                        <div class="alert alert-danger" role="alert">
+                            @ErrorMessage
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(SuccessMessage))
+                    {
+                        <div class="alert alert-success" role="alert">
+                            @SuccessMessage
+                        </div>
+                    }
+
+                    <h5 class="card-title">Login</h5>
+                    <p class="text-muted">Already have an account? Log in here</p>
+                    <p class="text-muted">Login is handled automatically when connecting to SpacetimeDB with your credentials.</p>
+                    <p class="text-muted">If you don't have credentials yet, please register.</p>
+
+                    @if (!IsAuthenticated)
+                    {
+                        <p>Status: Not Connected / Not Authenticated</p>
+                        <p>Please ensure the SpacetimeDB service is configured and attempting to connect.</p>
+                    }
+                    else
+                    {
+                        <p>Status: Connected & Authenticated as @(SpacetimeService.LocalIdentity)</p>
+                        <button class="btn btn-info" href="home">Go to Profile</button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    // Define view states for the component
+    private enum AuthView {
+        Login,
+        Register,
+        Verify,
+        Profile
+    }
+
+    private AuthView CurrentView { get; set; } = AuthView.Login;
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "view")]
+    public string? View { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (!string.IsNullOrEmpty(View))
+        {
+            if (Enum.TryParse<AuthView>(View, true, out var view))
+            {
+                CurrentView = view;
+            }
+        }
+        base.OnParametersSet();
+    }
+    private string ErrorMessage { get; set; } = "";
+    private string SuccessMessage { get; set; } = "";
+    private bool IsVerificationNeeded { get; set; } = false; // Consider if this state is still needed or if backend drives it
+    private bool IsAuthenticated => SpacetimeService.IsConnected && SpacetimeService.LocalIdentity != null;
+    private User? CurrentUser { get; set; } // Use nullable User type
+
+    // Models for the different forms
+    private RegisterModel registerModel = new RegisterModel();
+    private VerifyModel verifyModel = new VerifyModel();
+    private ProfileModel profileModel = new ProfileModel();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!string.IsNullOrEmpty(View))
+        {
+            if (Enum.TryParse<AuthView>(View, true, out var view))
+            {
+                CurrentView = view;
+            }
+        }
+        {
+            SpacetimeService.OnConnect += HandleConnectionChange;
+            SpacetimeService.OnDisconnect += HandleConnectionChange;
+            SpacetimeService.OnIdentityReceived += HandleIdentityReceived;
+            // SpacetimeService.OnProfileReceived += HandleProfileReceived;
+            SpacetimeService.OnErrorReceived += HandleSpacetimeError; // Add handler for errors
+
+            // Check initial state
+            HandleConnectionChange();
+
+            await base.OnInitializedAsync();
+        }
+
+    }
+
+    private void HandleConnectionChange()
+    {
+        if (IsAuthenticated)
+        {
+            Logger.LogInformation("Authenticated. Attempting to load profile.");
+            _ = LoadProfile(); // Attempt to load profile when authenticated
+            // Don't switch view here yet, wait for profile data or confirmation it doesn't exist
+        }
+        else
+        {
+            Logger.LogInformation("Not authenticated. Resetting view to Login.");
+            CurrentView = AuthView.Login;
+            CurrentUser = null;
+            IsVerificationNeeded = false;
+            profileModel = new ProfileModel();
+        }
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void HandleIdentityReceived(Identity identity)
+    {
+        Logger.LogInformation("Identity received: {Username}", identity);
+        // Now that we have identity, request profile
+        _ = LoadProfile();
+        InvokeAsync(StateHasChanged);
+    }
+
+    // New handler for receiving profile data from the service
+    private void HandleProfileReceived(User user)
+    {
+        Logger.LogInformation("Profile received for user: {Username}", user!.Username);
+        CurrentUser = user;
+        // Populate the profile model with the received data
+        profileModel = new ProfileModel
+        {
+            Email = CurrentUser.Email,
+            // Add null checks for location properties, providing default values
+            // Latitude = CurrentUser.Location?.Latitude ?? 0,
+            // Longitude = CurrentUser.Location?.Longitude ?? 0,
+            // Address = CurrentUser.Location?.Address ?? "",
+            // City = CurrentUser.Location?.City ?? "",
+            // State = CurrentUser.Location?.State ?? "",
+            // Country = CurrentUser.Location?.Country ?? "",
+            // PostalCode = CurrentUser.Location?.PostalCode ?? ""
+        };
+        SwitchView(AuthView.Profile);
+        InvokeAsync(StateHasChanged);
+    }
+
+    // New handler for receiving errors from SpacetimeDBService
+    private async void HandleSpacetimeError(string errorType, string errorMessage)
+    {
+        Logger.LogInformation("SpacetimeDB Error ({ErrorType}): {ErrorMessage}", errorType, errorMessage);
+        ErrorMessage = $"Error ({errorType}): {errorMessage}";
+        // Decide how to handle different errors, e.g., clear success message
+        SuccessMessage = "";
+        // Potentially switch view based on error, e.g., back to login on auth failure
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadProfile()
+    {
+        if (!IsAuthenticated)
+        {
+            Logger.LogWarning("LoadProfile called but not authenticated.");
+            ErrorMessage = "You must be logged in to view your profile.";
+            SwitchView(AuthView.Login);
+            return;
+        }
+
+        try
+        {
+            Logger.LogInformation("Requesting profile data from SpacetimeDB.");
+            ErrorMessage = ""; // Clear previous errors
+            SuccessMessage = "Loading profile..."; // Provide feedback
+            // The SpacetimeDBService should handle the actual request/response
+            // We just trigger the request here.
+            SpacetimeService.RequestProfile();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error loading profile: {ex.Message}";
+            Logger.LogInformation(ex, "Error requesting user profile");
+            SuccessMessage = ""; // Clear loading message
+            // Optionally switch back to login or show an error state
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void SwitchView(AuthView view)
+    {
+        // Only allow switching to Profile if authenticated and profile is loaded (or loading)
+        if (view == AuthView.Profile && !IsAuthenticated)
+        {
+            Logger.LogWarning("Attempted to switch to Profile view while not authenticated.");
+            CurrentView = AuthView.Login; // Redirect to login
+        }
+        // Only allow switching to Verify if verification is needed (might need better logic)
+        else if (view == AuthView.Verify && !IsVerificationNeeded)
+        {
+            Logger.LogWarning("Attempted to switch to Verify view when verification is not marked as needed.");
+            CurrentView = AuthView.Login;
+        }
+        else
+        {
+            CurrentView = view;
+            StateHasChanged(); // Force UI update immediately after view change
+        }
+
+        // Clear messages when switching views unless it's an error redirect
+        if (string.IsNullOrEmpty(ErrorMessage)) // Don't clear error message if we just set one
+        {
+            ErrorMessage = "";
+        }
+        SuccessMessage = ""; // Always clear success message on view switch
+        StateHasChanged(); // Ensure UI updates
+    }
+
+    // HandleLogin might not be needed if connection handles auth automatically
+    // private void HandleLogin()
+    // {
+    //     ErrorMessage = "";
+    //     SuccessMessage = "Attempting to connect and authenticate...";
+    //     Logger.LogInformation("Manual Login attempt triggered (usually handled by connection).");
+    //     // Trigger connection if not already connecting?
+    //     // SpacetimeService.Connect(); // Or similar method if available
+    // }
+
+    private void HandleRegister()
+    {
+        try
+        {
+            ErrorMessage = "";
+            SuccessMessage = "";
+            Logger.LogInformation("Attempting to register user: {Username}", registerModel.Username);
+
+            // Assume SpacetimeDBService takes care of sending the command
+            // The service should expose a method like RegisterUser
+            SpacetimeService.RegisterUser(
+            registerModel.Username,
+            registerModel.Email,
+            registerModel.Role
+            // registerModel.Latitude,
+            // registerModel.Longitude,
+            // registerModel.Address,
+            // registerModel.City,
+            // registerModel.State,
+            // registerModel.Country,
+            // registerModel.PostalCode
+            );
+
+            // Important: We don't know if registration succeeded yet.
+            // The backend should send a response (e.g., success + verification needed, or failure).
+            // For now, we assume it will likely require verification.
+            SuccessMessage = "Registration request sent. If successful, you should receive a verification email.";
+            IsVerificationNeeded = true; // Assume verification is next step
+            SwitchView(AuthView.Verify);
+
+            // Pre-populate the verification form
+            // verifyModel.Latitude = registerModel.Latitude;
+            // verifyModel.Longitude = registerModel.Longitude;
+            // verifyModel.Address = registerModel.Address;
+            // verifyModel.City = registerModel.City;
+            // verifyModel.State = registerModel.State;
+            // verifyModel.Country = registerModel.Country;
+            // verifyModel.PostalCode = registerModel.PostalCode;
+
+            // Clear registration form after submission
+            registerModel = new RegisterModel();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Registration failed: {ex.Message}";
+            Logger.LogInformation(ex, "Error during registration submission");
+            SuccessMessage = "";
+        }
+    }
+
+    private void HandleVerification()
+    {
+        try
+        {
+            ErrorMessage = "";
+            SuccessMessage = "";
+            Logger.LogInformation("Attempting email verification with code: {VerificationCode}", verifyModel.VerificationCode);
+
+            // Assume SpacetimeDBService takes care of sending the command
+            SpacetimeService.VerifyEmail(verifyModel.VerificationCode, verifyModel.Email);
+
+            // Again, we assume success for now. Backend should confirm.
+            // The SpacetimeDBService should receive confirmation and potentially trigger login/identity.
+            SuccessMessage = "Verification request sent. If successful, you should be logged in shortly.";
+            IsVerificationNeeded = false; // Clear the flag
+            SwitchView(AuthView.Login); // Go back to login, connection should establish identity now
+
+            // Clear verification form
+            verifyModel = new VerifyModel();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Verification failed: {ex.Message}";
+            Logger.LogInformation(ex, "Error during email verification submission");
+            SuccessMessage = "";
+        }
+    }
+
+    private void HandleProfileUpdate()
+    {
+        if (!IsAuthenticated || CurrentUser == null)
+        {
+            ErrorMessage = "Cannot update profile. You are not logged in.";
+            Logger.LogWarning("Profile update attempted while not authenticated.");
+            SwitchView(AuthView.Login);
+            return;
+        }
+
+        try
+        {
+            ErrorMessage = "";
+            SuccessMessage = "";
+            Logger.LogInformation("Attempting to update profile for user: {Username}", CurrentUser.Username);
+
+            // Assume SpacetimeDBService takes care of sending the command
+            SpacetimeService.UpdateProfile(
+            profileModel.Email // Assuming email can be updated
+            // profileModel.Latitude,
+            // profileModel.Longitude,
+            // profileModel.Address,
+            // profileModel.City,
+            // profileModel.State,
+            // profileModel.Country,
+            // profileModel.PostalCode
+            );
+
+            // Assume success, backend should confirm and ideally send back updated profile
+            SuccessMessage = "Profile update request sent.";
+            // Optional: Re-request profile to get updated data immediately? Or wait for push update?
+            // await LoadProfile();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Profile update failed: {ex.Message}";
+            Logger.LogInformation(ex, "Error during profile update submission");
+            SuccessMessage = "";
+        }
+    }
+
+    private async Task HandleLogout()
+    {
+        try
+        {
+            Logger.LogInformation("Logout requested.");
+            ErrorMessage = "";
+            SuccessMessage = "Logging out...";
+            // Disconnect from SpacetimeDB
+            await SpacetimeService.DisconnectAsync(); // Assuming an async disconnect method
+            // NavigationManager.NavigateTo("/", true); // Force reload can be disruptive, handle via state change
+            // The HandleConnectionChange method should detect disconnection and switch view
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Logout failed: {ex.Message}";
+            Logger.LogInformation(ex, "Error during logout");
+            SuccessMessage = "";
+        }
+        // State should be updated by the OnDisconnect event handler triggering HandleConnectionChange
+    }
+
+    // Implement IDisposable to unsubscribe from events
+    public void Dispose()
+    {
+        SpacetimeService.OnConnect -= HandleConnectionChange;
+        SpacetimeService.OnDisconnect -= HandleConnectionChange;
+        SpacetimeService.OnIdentityReceived -= HandleIdentityReceived;
+        // SpacetimeService.OnProfileReceived -= HandleProfileReceived;
+        SpacetimeService.OnErrorReceived -= HandleSpacetimeError;
+        GC.SuppressFinalize(this); // Standard practice in Dispose pattern
+    }
+
+// --- Data model classes ---
+// (Keep these as they are, they look reasonable)
+    public class RegisterModel {
+        [Required]
+        [StringLength(32, MinimumLength = 3, ErrorMessage = "Username must be between 3 and 32 characters")]
+        [RegularExpression(@"^[a-zA-Z0-9_]+$", ErrorMessage = "Username can only contain letters, numbers, and underscores")]
+        public string Username { get; set; } = "";
+
+        [Required]
+        [EmailAddress]
+        [StringLength(254)] // Standard email max length
+        public string Email { get; set; } = "";
+
+        [Required]
+        [Range(0, 2, ErrorMessage = "Please select a valid role")]
+        public int Role { get; set; } = 0; // Default to Beneficiary
+
+// [Required]
+// [Range(-90.0, 90.0, ErrorMessage = "Latitude must be between -90 and 90")]
+// public double Latitude { get; set; } = 0;
+//
+// [Required]
+// [Range(-180.0, 180.0, ErrorMessage = "Longitude must be between -180 and 180")]
+// public double Longitude { get; set; } = 0;
+//
+// [Required]
+// [StringLength(200, MinimumLength = 5, ErrorMessage = "Address should be between 5 and 200 characters")]
+// public string Address { get; set; } = "";
+//
+// [Required]
+// [StringLength(100, MinimumLength = 2, ErrorMessage = "City should be between 2 and 100 characters")]
+// public string City { get; set; } = "";
+//
+// [Required]
+// [StringLength(100, MinimumLength = 2, ErrorMessage = "State/Province should be between 2 and 100 characters")]
+// public string State { get; set; } = "";
+//
+// [Required]
+// [StringLength(100, MinimumLength = 2, ErrorMessage = "Country should be between 2 and 100 characters")]
+// public string Country { get; set; } = "";
+//
+// [Required]
+// [StringLength(20, MinimumLength = 3, ErrorMessage = "Postal Code should be between 3 and 20 characters")]
+// public string PostalCode { get; set; } = "";
+    }
+
+    public class VerifyModel {
+        [Required]
+        [StringLength(6, MinimumLength = 6, ErrorMessage = "Verification code must be 6 characters")] // Assuming 6 char code
+        [RegularExpression(@"^[a-zA-Z0-9]+$", ErrorMessage = "Verification code can only contain letters and numbers")]
+        public string VerificationCode { get; set; } = "";
+
+        [Required]
+        [StringLength(6, MinimumLength = 6, ErrorMessage = "Email code must be 6 characters")] // Assuming 6 char code
+        [RegularExpression(@"^[a-zA-Z0-9]+$", ErrorMessage = "Email Address code can only contain letters and numbers")]
+        public string Email { get; set; } = "";
+
+// // Location data might be optional for verification if the backend uses the initially provided one
+// // But including them allows potential correction if needed during verification step.
+// [Required]
+// [Range(-90.0, 90.0, ErrorMessage = "Latitude must be between -90 and 90")]
+// public double Latitude { get; set; } = 0;
+//
+// [Required]
+// [Range(-180.0, 180.0, ErrorMessage = "Longitude must be between -180 and 180")]
+// public double Longitude { get; set; } = 0;
+//
+// [Required]
+// [StringLength(200, MinimumLength = 5, ErrorMessage = "Address should be between 5 and 200 characters")]
+// public string Address { get; set; } = "";
+//
+// [Required]
+// [StringLength(100, MinimumLength = 2, ErrorMessage = "City should be between 2 and 100 characters")]
+// public string City { get; set; } = "";
+//
+// [Required]
+// [StringLength(100, MinimumLength = 2, ErrorMessage = "State/Province should be between 2 and 100 characters")]
+// public string State { get; set; } = "";
+//
+// [Required]
+// [StringLength(100, MinimumLength = 2, ErrorMessage = "Country should be between 2 and 100 characters")]
+// public string Country { get; set; } = "";
+//
+// [Required]
+// [StringLength(20, MinimumLength = 3, ErrorMessage = "Postal Code should be between 3 and 20 characters")]
+// public string PostalCode { get; set; } = "";
+    }
+
+    public class ProfileModel {
+        [Required]
+        [EmailAddress]
+        [StringLength(254)]
+        public string Email { get; set; } = ""; // Allow email update?
+
+// [Required]
+// [Range(-90.0, 90.0, ErrorMessage = "Latitude must be between -90 and 90")]
+// public double Latitude { get; set; } = 0;
+//
+// [Required]
+// [Range(-180.0, 180.0, ErrorMessage = "Longitude must be between -180 and 180")]
+// public double Longitude { get; set; } = 0;
+//
+// [Required]
+// [StringLength(200, MinimumLength = 5, ErrorMessage = "Address should be between 5 and 200 characters")]
+// public string Address { get; set; } = "";
+//
+// [Required]
+// [StringLength(100, MinimumLength = 2, ErrorMessage = "City should be between 2 and 100 characters")]
+// public string City { get; set; } = "";
+//
+// [Required]
+// [StringLength(100, MinimumLength = 2, ErrorMessage = "State/Province should be between 2 and 100 characters")]
+// public string State { get; set; } = "";
+//
+// [Required]
+// [StringLength(100, MinimumLength = 2, ErrorMessage = "Country should be between 2 and 100 characters")]
+// public string Country { get; set; } = "";
+//
+// [Required]
+// [StringLength(20, MinimumLength = 3, ErrorMessage = "Postal Code should be between 3 and 20 characters")]
+// public string PostalCode { get; set; } = "";
+    }
+
+// --- SpacetimeDB Type Placeholder ---
+// Replace this with the actual User type definition from your SpacetimeDB generated code
+// This is just a placeholder to make the component compile
+    public class User {
+        public string Username { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Role { get; set; } = string.Empty; // Or enum/int if that's how it's defined
+// public Location Location { get; set; } = new Location();
+// // Add other relevant fields: IdentityId, IsVerified, etc.
+        public bool IsVerified { get; set; }
+    }
+
+// public class Location {
+// public double Latitude { get; set; }
+// public double Longitude { get; set; }
+// public string Address { get; set; } = string.Empty;
+// public string City { get; set; } = string.Empty;
+// public string State { get; set; } = string.Empty;
+// public string Country { get; set; } = string.Empty;
+// public string PostalCode { get; set; } = string.Empty;
+// }
+
+// Need to update SpacetimeDBService interface/implementation based on usage here
+// Example placeholder for SpacetimeDBService methods used
+}
