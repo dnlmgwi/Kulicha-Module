@@ -117,7 +117,7 @@
             // SpacetimeService.OnProfileReceived += HandleProfileReceived;
             SpacetimeService.OnErrorReceived += HandleSpacetimeError; // Add handler for errors
             SpacetimeService.OnRegisterSuccess += HandleRegisterSuccess; // Add handler for successful registration
-
+            
             // Check initial state
             HandleConnectionChange();
 
@@ -286,8 +286,7 @@
         IsVerificationNeeded = true;
         verifyModel.Email = registerModel.Email;
         
-        // Reset the register model for a fresh form if the user returns
-        registerModel = new RegisterModel();
+       
         
         await InvokeAsync(StateHasChanged);
         
@@ -295,7 +294,12 @@
         await Task.Delay(2000);
         
         // Redirect to the Auth page with the verify view
-        NavigationManager.NavigateTo("/?view=Verify");
+        // Use NavigateTo with forceLoad:true to ensure a full page reload
+        // This prevents the NavigationException that occurs when trying to navigate within a component
+        NavigationManager.NavigateTo("/verify", forceLoad: true);
+
+         // Reset the register model for a fresh form if the user returns
+        registerModel = new RegisterModel();
     }
 
     private void HandleVerification()
