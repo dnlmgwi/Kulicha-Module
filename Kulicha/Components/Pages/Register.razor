@@ -1,4 +1,5 @@
 @page "/register"
+@rendermode InteractiveServer
 @using System.ComponentModel.DataAnnotations
 @using Kulicha.Services
 @using Microsoft.Extensions.Logging
@@ -6,59 +7,82 @@
 @using SpacetimeDB.Types
 @inject SpacetimeDbService SpacetimeService
 @inject ILogger<Auth> Logger
+@inject NavigationManager NavigationManager
 
-<div class="container mt-4">
-    <div class="row">
-        <div class="col-md-6 offset-md-3">
-            <div class="card">
-                <div class="card-body">
-                    @if (!string.IsNullOrEmpty(ErrorMessage))
-                    {
-                        <div class="alert alert-danger" role="alert">
-                            @ErrorMessage
+
+<div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full space-y-8">
+        <div class="bg-white p-8 rounded-lg shadow-md">
+            @if (!string.IsNullOrEmpty(ErrorMessage))
+            {
+                <div class="bg-red-50 border-l-4 border-red-400 p-4 mb-4" role="alert">
+                    <div class="flex">
+                        <div class="ml-3">
+                            <h3 class="text-sm font-medium text-red-800">Registration Error</h3>
+                            <p class="text-sm text-red-700">@ParseErrorMessage(ErrorMessage)</p>
                         </div>
-                    }
-
-                    @if (!string.IsNullOrEmpty(SuccessMessage))
-                    {
-                        <div class="alert alert-success" role="alert">
-                            @SuccessMessage
-                        </div>
-                    }
-
-                    <h5 class="card-title">Register</h5>
-                    <p class="text-muted">Create a new account</p>
-                    <EditForm Model="@registerModel" OnValidSubmit="HandleRegister" FormName="register">
-                        <DataAnnotationsValidator/>
-                        <ValidationSummary/>
-
-                        <div class="mb-3">
-                            <label for="username" class="form-label">Username</label>
-                            <InputText id="username" @bind-Value="registerModel.Username" class="form-control"/>
-                            <ValidationMessage For="@(() => registerModel.Username)"/>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="email" class="form-label">Email</label>
-                            <InputText id="email" @bind-Value="registerModel.Email" type="email"
-                                       class="form-control"/>
-                            <ValidationMessage For="@(() => registerModel.Email)"/>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="role" class="form-label">Role</label>
-                            <InputSelect id="role" @bind-Value="registerModel.Role" class="form-select">
-                                <option value="2">Beneficiary</option>
-                                <option value="1">Benefactor</option>
-                                <option value="0">Auditor</option>
-                            </InputSelect>
-                            <ValidationMessage For="@(() => registerModel.Role)"/>
-                        </div>
-
-                        <button type="submit" class="btn btn-primary">Register</button>
-                    </EditForm>
+                    </div>
                 </div>
+            }
+
+            @if (!string.IsNullOrEmpty(SuccessMessage))
+            {
+                <div class="bg-green-50 border-l-4 border-green-400 p-4 mb-4" role="alert">
+                    <div class="flex">
+                        <div class="ml-3">
+                            <p class="text-sm text-green-700">@SuccessMessage</p>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <div class="text-center mb-6">
+                <h2 class="text-3xl font-extrabold text-gray-900">Register</h2>
+                <p class="mt-2 text-sm text-gray-600">Create a new account</p>
             </div>
+
+            <EditForm Model="@registerModel" OnValidSubmit="HandleRegister" FormName="register" class="space-y-6">
+                <DataAnnotationsValidator/>
+                <ValidationSummary class="text-red-500 text-sm"/>
+
+                <div>
+                    <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
+                    <div class="mt-1">
+                        <InputText id="username" @bind-Value="registerModel.Username"
+                                   class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"/>
+                    </div>
+                    <ValidationMessage For="@(() => registerModel.Username)" class="text-red-500 text-sm"/>
+                </div>
+
+                <div>
+                    <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+                    <div class="mt-1">
+                        <InputText id="email" @bind-Value="registerModel.Email" type="email"
+                                   class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"/>
+                    </div>
+                    <ValidationMessage For="@(() => registerModel.Email)" class="text-red-500 text-sm"/>
+                </div>
+
+                <div>
+                    <label for="role" class="block text-sm font-medium text-gray-700">Role</label>
+                    <div class="mt-1">
+                        <InputSelect id="role" @bind-Value="registerModel.Role"
+                                     class="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                            <option value="2">Beneficiary</option>
+                            <option value="1">Benefactor</option>
+                            <option value="0">Auditor</option>
+                        </InputSelect>
+                    </div>
+                    <ValidationMessage For="@(() => registerModel.Role)" class="text-red-500 text-sm"/>
+                </div>
+
+                <div>
+                    <button type="submit"
+                            class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        Register
+                    </button>
+                </div>
+            </EditForm>
         </div>
     </div>
 </div>
@@ -91,7 +115,7 @@
     private string ErrorMessage { get; set; } = "";
     private string SuccessMessage { get; set; } = "";
     private bool IsVerificationNeeded { get; set; } = false; // Consider if this state is still needed or if backend drives it
-    private bool IsAuthenticated => SpacetimeService.IsConnected && SpacetimeService.LocalIdentity != null;
+    private bool IsAuthenticated => SpacetimeService.IsConnected && SpacetimeService.LocalIdentity != null && CurrentUser != null;
     private User? CurrentUser { get; set; } // Use nullable User type
 
     // Models for the different forms
@@ -230,6 +254,17 @@
     //     // SpacetimeService.Connect(); // Or similar method if available
     // }
 
+    private string ParseErrorMessage(string error)
+    {
+        if (error.Contains("UniqueConstraintViolationException"))
+        {
+            return "This email or username is already registered. Please try a different one.";
+        }
+
+        // Add more specific error parsing as needed
+        return error;
+    }
+
     private async Task HandleRegister()
     {
         try
@@ -239,8 +274,8 @@
             await InvokeAsync(StateHasChanged); // Update UI immediately to show processing message
 
             Logger.LogInformation("Attempting to register user: {Username}", registerModel.Username);
+            await InvokeAsync(StateHasChanged);
 
-            // Check if we're connected first
             if (!SpacetimeService.IsConnected)
             {
                 Logger.LogInformation("Not connected to SpacetimeDB. Registration will attempt to establish connection.");
@@ -248,32 +283,26 @@
                 await InvokeAsync(StateHasChanged);
             }
 
-            // Call the service method to register the user
-            // The service will attempt to connect if not already connected
             SpacetimeService.RegisterUser(
             registerModel.Username,
             registerModel.Email,
             registerModel.Role
             );
-
-            // Provide feedback to the user that the request was sent
-            // The actual success will be handled by the HandleRegisterSuccess method
-            SuccessMessage = "Registration request sent. Processing...";
             await InvokeAsync(StateHasChanged);
-
-            // Note: We don't redirect here anymore - we'll wait for the callback
         }
         catch (Exception ex)
         {
             ErrorMessage = $"Registration failed: {ex.Message}";
             Logger.LogInformation(ex, "Error during registration submission");
             SuccessMessage = "";
-            await InvokeAsync(StateHasChanged);
         }
+
+
     }
 
     private async void HandleRegisterSuccess(string username)
     {
+
         Logger.LogInformation("Registration successful for user: {Username}", username);
 
         // Update UI with success message
@@ -289,14 +318,22 @@
 
         // Wait a moment before redirecting to ensure the user sees the success message
         await Task.Delay(2000);
-
-        // Redirect to the Auth page with the verify view
-        // Use NavigateTo with forceLoad:true to ensure a full page reload
-        // This prevents the NavigationException that occurs when trying to navigate within a component
-        //NavigationManager.NavigateTo("/verify", forceLoad: true);
-
+        try
+        {
+            // Redirect to the Auth page with the verify view
+            // Use NavigateTo with forceLoad:true to ensure a full page reload
+            // This prevents the NavigationException that occurs when trying to navigate within a component
+            NavigationManager.NavigateTo("/verify", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "";
+            Logger.LogInformation(ex, "Redirecting");
+            SuccessMessage = "";
+        }
         // Reset the register model for a fresh form if the user returns
         registerModel = new RegisterModel();
+
     }
 
     private void HandleVerification()
@@ -407,12 +444,12 @@
         [Required]
         [StringLength(32, MinimumLength = 3, ErrorMessage = "Username must be between 3 and 32 characters")]
         [RegularExpression(@"^[a-zA-Z0-9_]+$", ErrorMessage = "Username can only contain letters, numbers, and underscores")]
-        public string Username { get; set; } = "admin";
+        public string Username { get; set; } = "";
 
         [Required]
         [EmailAddress]
         [StringLength(254)] // Standard email max length
-        public string Email { get; set; } = "admin@gmail.com";
+        public string Email { get; set; } = "";
 
         [Required]
         [Range(0, 2, ErrorMessage = "Please select a valid role")]
