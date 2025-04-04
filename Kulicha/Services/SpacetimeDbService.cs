@@ -9,6 +9,7 @@ public class SpacetimeDbService : IHostedService, IDisposable {
     private Task? _processTask;
     private Identity? _localIdentity;
     private bool _isConnected;
+    private string? _connectionError;
 
     // --- Events for Blazor components ---
     public event Action? OnConnect;
@@ -16,6 +17,7 @@ public class SpacetimeDbService : IHostedService, IDisposable {
     public event Action<Identity>? OnIdentityReceived;
     public event Action<User>? OnProfileReceived; // Event specifically for profile data
     public event Action<string, string>? OnErrorReceived; // Event for errors (type, message)
+    public event Action<string>? OnRegisterSuccess; // Event for successful registration
     // ------------------------------------
 
     public SpacetimeDbService(ILogger<SpacetimeDbService> logger)
@@ -30,7 +32,7 @@ public class SpacetimeDbService : IHostedService, IDisposable {
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to initialize AuthToken. Check directory permissions.");
+            _logger.LogInformation(ex, "Failed to initialize AuthToken. Check directory permissions.");
             // Depending on requirements, you might want to throw or handle this differently
         }
     }
@@ -38,6 +40,7 @@ public class SpacetimeDbService : IHostedService, IDisposable {
     // --- Public accessors ---
     public bool IsConnected => _isConnected;
     public Identity? LocalIdentity => _localIdentity;
+    public string? ConnectionError => _connectionError;
     // Removed InputQueue - use specific methods below
     // ----------------------
 
@@ -73,7 +76,7 @@ public class SpacetimeDbService : IHostedService, IDisposable {
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to initialize SpacetimeDB connection.");
+            _logger.LogInformation(ex, "Failed to initialize SpacetimeDB connection.");
             // Optionally prevent application startup if connection is critical
             // throw;
             return Task.CompletedTask; // Or Task.FromException(ex);
@@ -113,7 +116,7 @@ public class SpacetimeDbService : IHostedService, IDisposable {
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error during processing loop shutdown wait.");
+                _logger.LogInformation(ex, "Error during processing loop shutdown wait.");
             }
         }
 
@@ -131,7 +134,7 @@ public class SpacetimeDbService : IHostedService, IDisposable {
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error during explicit SpacetimeDB disconnection.");
+                _logger.LogInformation(ex, "Error during explicit SpacetimeDB disconnection.");
             }
             finally
             {
@@ -173,7 +176,7 @@ public class SpacetimeDbService : IHostedService, IDisposable {
             }
             else
             {
-                _logger.LogError(ex, "Unhandled exception in SpacetimeDB processing loop.");
+                _logger.LogInformation(ex, "Unhandled exception in SpacetimeDB processing loop.");
             }
         }
         finally
@@ -184,22 +187,44 @@ public class SpacetimeDbService : IHostedService, IDisposable {
 
     // --- Public Methods for Reducer Calls ---
 
-    public void RegisterUser(string username, string email, int role, double lat, double lon, string address, string city, string state, string country, string postalCode)
+    public async void RegisterUser(string username, string email, int role)
     {
+        // If not connected, attempt to establish connection first
         if (!_isConnected || _conn == null)
         {
-            _logger.LogWarning("Cannot RegisterUser: Not connected.");
-            OnErrorReceived?.Invoke("Connection", "Not connected to SpacetimeDB.");
-            return;
+            _logger.LogInformation("Not connected to SpacetimeDB. Attempting to connect before registration.");
+            try 
+            {
+                // Try to reconnect
+                await RetryConnection();
+                
+                // Wait a moment for connection to establish
+                await Task.Delay(1000);
+                
+                // If still not connected after retry, report error
+                if (!_isConnected || _conn == null)
+                {
+                    _logger.LogWarning("Cannot RegisterUser: Connection retry failed.");
+                    OnErrorReceived?.Invoke("Connection", "Failed to connect to SpacetimeDB. Please try again.");
+                    return;
+                }
+            }
+            catch (Exception connEx)
+            {
+                _logger.LogInformation(connEx, "Error reconnecting to SpacetimeDB.");
+                OnErrorReceived?.Invoke("Connection", $"Connection error: {connEx.Message}");
+                return;
+            }
         }
+        
         try
         {
             _logger.LogInformation("Calling RegisterUser reducer for {Username}", username);
-            _conn.Reducers.RegisterUser(email, username, role);
+            _conn.Reducers.RegisterUser(username, email, role);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error calling RegisterUser reducer.");
+            _logger.LogInformation(ex, "Error calling RegisterUser reducer.");
             OnErrorReceived?.Invoke("ReducerCall", $"Failed to call RegisterUser: {ex.Message}");
         }
     }
@@ -215,16 +240,17 @@ public class SpacetimeDbService : IHostedService, IDisposable {
         try
         {
             _logger.LogInformation("Calling VerifyEmail reducer with code {Code}", code);
-            _conn.Reducers.VerifyEmail(email);
+            // Pass both the verification code and email
+            _conn.Reducers.VerifyEmail(code);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error calling VerifyEmail reducer.");
+            _logger.LogInformation(ex, "Error calling VerifyEmail reducer.");
             OnErrorReceived?.Invoke("ReducerCall", $"Failed to call VerifyEmail: {ex.Message}");
         }
     }
 
-    public void UpdateProfile(string email, double lat, double lon, string address, string city, string state, string country, string postalCode)
+    public void UpdateProfile(string email)
     {
         if (!_isConnected || _conn == null)
         {
@@ -235,11 +261,12 @@ public class SpacetimeDbService : IHostedService, IDisposable {
         try
         {
             _logger.LogInformation("Calling UpdateProfile reducer for user {Identity}", _localIdentity);
+            // Pass all location parameters to the UpdateProfile reducer
             _conn.Reducers.UpdateProfile(email);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error calling UpdateProfile reducer.");
+            _logger.LogInformation(ex, "Error calling UpdateProfile reducer.");
             OnErrorReceived?.Invoke("ReducerCall", $"Failed to call UpdateProfile: {ex.Message}");
         }
     }
@@ -260,7 +287,7 @@ public class SpacetimeDbService : IHostedService, IDisposable {
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error calling GetMyProfile reducer.");
+            _logger.LogInformation(ex, "Error calling GetMyProfile reducer.");
             OnErrorReceived?.Invoke("ReducerCall", $"Failed to call GetMyProfile: {ex.Message}");
         }
     }
@@ -284,6 +311,33 @@ public class SpacetimeDbService : IHostedService, IDisposable {
         else
         {
             _logger.LogInformation("DisconnectAsync called, but already disconnected or not started.");
+        }
+    }
+
+    public async Task RetryConnection()
+    {
+        _logger.LogInformation("Attempting to retry connection to SpacetimeDB.");
+        _connectionError = null;
+        
+        try
+        {
+            // First ensure we're disconnected
+            await DisconnectAsync();
+            
+            // Small delay to ensure disconnect completes
+            await Task.Delay(500);
+            
+            // Attempt to reconnect
+            await StartAsync(CancellationToken.None);
+            
+            _logger.LogInformation("Connection retry initiated successfully.");
+        }
+        catch (Exception ex)
+        {
+            _connectionError = $"Connection retry failed: {ex.Message}";
+            _logger.LogInformation(ex, "Error during connection retry.");
+            OnErrorReceived?.Invoke("Connection", _connectionError);
+            throw; // Rethrow to allow caller to handle
         }
     }
 
@@ -311,7 +365,7 @@ public class SpacetimeDbService : IHostedService, IDisposable {
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error requesting subscription.");
+            _logger.LogInformation(ex, "Error requesting subscription.");
             OnErrorReceived?.Invoke("Subscription", $"Failed to subscribe: {ex.Message}");
         }
     }
@@ -320,8 +374,9 @@ public class SpacetimeDbService : IHostedService, IDisposable {
     {
         _isConnected = false;
         _localIdentity = null;
-        _logger.LogError(e, "Error while connecting to SpacetimeDB");
-        OnErrorReceived?.Invoke("Connection", $"Connection failed: {e.Message}");
+        _connectionError = $"Connection failed: {e.Message}";
+        _logger.LogInformation(e, "Error while connecting to SpacetimeDB");
+        OnErrorReceived?.Invoke("Connection", _connectionError);
         OnDisconnect?.Invoke(); // Raise disconnect event on connection error too
     }
 
@@ -333,11 +388,13 @@ public class SpacetimeDbService : IHostedService, IDisposable {
 
         if (e != null)
         {
+            _connectionError = $"Disconnected abnormally: {e.Message}";
             _logger.LogWarning(e, "Disconnected abnormally from SpacetimeDB");
-            OnErrorReceived?.Invoke("Connection", $"Disconnected abnormally: {e.Message}");
+            OnErrorReceived?.Invoke("Connection", _connectionError);
         }
         else
         {
+            _connectionError = null;
             _logger.LogInformation("Disconnected normally from SpacetimeDB.");
         }
 
@@ -360,9 +417,9 @@ public class SpacetimeDbService : IHostedService, IDisposable {
         // --- Reducer Callbacks ---
         // These are needed to get results/errors back from specific actions
         conn.Reducers.OnGetMyProfile += OnGetMyProfile;
-        conn.Reducers.OnRegisterUser += OnRegisterUser;
-        conn.Reducers.OnVerifyEmail += OnVerifyEmail;
-        conn.Reducers.OnUpdateProfile += OnUpdateProfile;
+        conn.Reducers.OnRegisterUser += OnRegisterUserCallback;
+        conn.Reducers.OnVerifyEmail += OnVerifyEmailCallback;
+        conn.Reducers.OnUpdateProfile += OnUpdateProfileCallback;
         // Add other reducer callbacks if needed (e.g., OnListUsersByRole)
 
         _logger.LogInformation("Registered SpacetimeDB table and reducer callbacks.");
@@ -421,8 +478,10 @@ public class SpacetimeDbService : IHostedService, IDisposable {
     // --- Reducer Callback Handlers ---
 
     // Callback for GetMyProfile (Response containing User data)
-    private void OnGetMyProfile(ReducerEventContext ctx, Reducer.GetMyProfile? args)
+    private void OnGetMyProfile(ReducerEventContext ctx)
     {
+        if (ctx.Event.CallerIdentity != _localIdentity) return;
+
         if (ctx.Event.Status is Status.Committed)
         {
             _logger.LogInformation("GetMyProfile reducer committed successfully.");
@@ -444,55 +503,61 @@ public class SpacetimeDbService : IHostedService, IDisposable {
         }
         else if (ctx.Event.Status is Status.Failed("error"))
         {
-            _logger.LogError("GetMyProfile reducer failed: {Error}", "error");
+            _logger.LogInformation("GetMyProfile reducer failed: {Error}", "error");
             OnErrorReceived?.Invoke("GetMyProfile", $"Failed to get profile: {ctx.Event.Status}");
         }
     }
 
     // Callback for RegisterUser
-    private void OnRegisterUser(ReducerEventContext ctx, Reducer.RegisterUser args)
+    private void OnRegisterUserCallback(ReducerEventContext ctx, string username, string email, int roleInt) // Added args parameter
     {
+        if (ctx.Event.CallerIdentity != _localIdentity) return;
+
         switch (ctx.Event.Status)
         {
             case Status.Committed:
-                _logger.LogInformation("RegisterUser reducer committed successfully for {Username}.", args.Username);
-                // Maybe raise a success event if needed by UI
+                _logger.LogInformation("RegisterUser reducer committed successfully for {Username}.", username);
+                // User data will arrive via User_OnInsert, which calls OnProfileReceived
+                OnRegisterSuccess?.Invoke(username);
                 break;
-            case Status.Failed("error"):
-                _logger.LogError("RegisterUser reducer failed for {Username}: {Error}", args.Username, ctx.Event.Status);
+            case Status.Failed:
+                _logger.LogInformation("RegisterUser reducer failed for: {Error}", ctx.Event.Status);
                 OnErrorReceived?.Invoke("RegisterUser", $"Registration failed: {ctx.Event.Status}");
                 break;
         }
-
     }
 
     // Callback for VerifyEmail
-    private void OnVerifyEmail(ReducerEventContext ctx, Reducer.VerifyEmail args)
+    private void OnVerifyEmailCallback(ReducerEventContext ctx, string email) // Added args parameter
     {
+        if (ctx.Event.CallerIdentity != _localIdentity) return;
+
         switch (ctx.Event.Status)
         {
             case Status.Committed:
-                _logger.LogInformation("VerifyEmail reducer committed successfully with code {Code}.", args.VerificationCode);
-                // Maybe raise a success event
+                _logger.LogInformation("VerifyEmail reducer committed successfully with code {Code}.", ctx.Event.Status);
+                // User data update (IsEmailVerified=true) will arrive via User_OnUpdate
                 break;
-            case Status.Failed("error"):
-                _logger.LogError("VerifyEmail reducer failed with code {Code}: {Error}", args.VerificationCode, ctx.Event.Status);
+            case Status.Failed:
+                _logger.LogInformation("VerifyEmail reducer failed with code: {Error}", ctx.Event.Status);
                 OnErrorReceived?.Invoke("VerifyEmail", $"Email verification failed: {ctx.Event.Status}");
                 break;
         }
     }
 
     // Callback for UpdateProfile
-    private void OnUpdateProfile(ReducerEventContext ctx, Reducer.UpdateProfile args)
+    private void OnUpdateProfileCallback(ReducerEventContext ctx, string email) // Added args parameter
     {
+        if (ctx.Event.CallerIdentity != _localIdentity) return;
+
         switch (ctx.Event.Status)
         {
             case Status.Committed:
-                _logger.LogInformation("UpdateProfile reducer committed successfully for email {Email}.", args.Email);
-                // Profile data will be updated via the User_OnUpdate callback triggering OnProfileReceived
+                _logger.LogInformation("UpdateProfile reducer committed successfully for email {Email}.", ctx.Event.Status);
+                // Profile data update will arrive via the User_OnUpdate callback triggering OnProfileReceived
                 break;
-            case Status.Failed("error"):
-                _logger.LogError("UpdateProfile reducer failed for email {Email}: {Error}", args.Email, ctx.Event.Status);
+            case Status.Failed:
+                _logger.LogInformation("UpdateProfile reducer failed for email: {Error}", ctx.Event.Status);
                 OnErrorReceived?.Invoke("UpdateProfile", $"Profile update failed: {ctx.Event.Status}");
                 break;
         }
@@ -512,7 +577,7 @@ public class SpacetimeDbService : IHostedService, IDisposable {
         {
             try { _conn.Disconnect(); }
             catch (InvalidOperationException) {}
-            catch (Exception ex) { _logger.LogError(ex, "Error during dispose disconnect."); }
+            catch (Exception ex) { _logger.LogInformation(ex, "Error during dispose disconnect."); }
         }
         _cts?.Dispose();
         GC.SuppressFinalize(this);
