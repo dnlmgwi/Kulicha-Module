@@ -60,7 +60,7 @@
     private string ErrorMessage { get; set; } = "";
     private string SuccessMessage { get; set; } = "";
     private VerifyModel verifyModel = new VerifyModel();
-    
+
     [Parameter]
     [SupplyParameterFromQuery(Name = "email")]
     public string? Email { get; set; }
@@ -73,13 +73,13 @@
         SpacetimeService.OnErrorReceived += HandleSpacetimeError;
         SpacetimeService.OnVerifySuccess += HandleVerifySuccess; // Add handler for successful registration
 
-        
+
         // If email was provided as a query parameter, populate the form
         if (!string.IsNullOrEmpty(Email))
         {
             verifyModel.Email = Email;
         }
-        
+
         await base.OnInitializedAsync();
     }
 
@@ -104,7 +104,7 @@
             ErrorMessage = "";
             SuccessMessage = "Processing verification...";
             await InvokeAsync(StateHasChanged); // Update UI immediately
-            
+
             Logger.LogInformation("Attempting email verification with code: {VerificationCode}", verifyModel.VerificationCode);
 
             // Check if we're connected first
@@ -122,12 +122,12 @@
             // Provide feedback to the user that the request was sent
             SuccessMessage = "Verification request sent. Processing...";
             await InvokeAsync(StateHasChanged);
-            
+
             // Wait a moment before redirecting to ensure the user sees the success message
             await Task.Delay(2000);
-            
+
             // Redirect to the home page
-            NavigationManager.NavigateTo("/", forceLoad: true);
+            // NavigationManager.NavigateTo("/", forceLoad: true);
         }
         catch (Exception ex)
         {
@@ -141,24 +141,24 @@
     private async void HandleVerifySuccess(string email)
     {
         Logger.LogInformation("Verification successful for user: {email}", email);
-        
+
         // Update UI with success message
         ErrorMessage = "";
         SuccessMessage = $"Verification successful for {email}!";
 
         // Keep the email value (don't reset the form before navigation)
         // Note: This line was redundant: verifyModel.Email = verifyModel.Email;
-        
+
         await InvokeAsync(StateHasChanged);
-        
+
         // Wait a moment before redirecting to ensure the user sees the success message
         await Task.Delay(2000);
-        
+
         // Redirect to the Auth page with the verify view
         // Use NavigateTo with forceLoad:true to ensure a full page reload
         // This prevents the NavigationException that occurs when trying to navigate within a component
         NavigationManager.NavigateTo("/login", forceLoad: true);
-        
+
         // Only reset the form after navigation has been triggered
         // This ensures the form data is still available during the navigation process
         verifyModel = new VerifyModel();
@@ -178,11 +178,11 @@
         [Required]
         [EmailAddress]
         [StringLength(254)] // Standard email max length
-        public string Email { get; set; } = "";
+        public string Email { get; set; } = "admin@gmail.com";
 
         [Required]
         [StringLength(6, MinimumLength = 6, ErrorMessage = "Verification code must be 6 characters")] // Assuming 6 char code
         [RegularExpression(@"^[a-zA-Z0-9]+$", ErrorMessage = "Verification code can only contain letters and numbers")]
-        public string VerificationCode { get; set; } = "";
+        public string VerificationCode { get; set; } = "9AJS6S";
     }
 }
