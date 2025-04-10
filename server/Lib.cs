@@ -121,25 +121,21 @@ public static partial class AuthModule {
     /// </summary>
     [Reducer(ReducerKind.ClientConnected)]
     public static void ClientConnected(ReducerContext ctx)
-    {
-        Identity identity = ctx.Sender;
+{
+    Identity identity = ctx.Sender;
 
-        var existingUser = ctx.Db.User.Identity.Find(identity);
+    // Assuming the client now provides the auth token as part of the connection metadata.
+    // In a real app, you'd have a more robust way to pass this, possibly through a handshake.
+    // string? authToken = ctx.Args?.Get("authToken")?.ToString();
 
-        if (existingUser != null)
-        {
-            // Update the auth session for existing users
-            var authSession = new AuthSession
-            {
-                Identity = identity,
-                LastActiveTime = ctx.Timestamp,
-                ActiveDeviceId = "web" //TODO: Get Device ID
-            };
+    var existingUser = ctx.Db.User.Identity.Find(identity);
 
-            ctx.Db.AuthSession.Identity.Update(authSession);
-
-            LogInfo(ctx, identity, "UserConnected", $"User {existingUser.Username} connected");
-        }
+    if (existingUser == null) {
+        Log.Error($"Unauthorized connection attempt.");
+        // In a real app, you might want to disconnect the client here.
+    } else {
+        LogInfo(ctx, identity, "UserConnected", $"User {existingUser.Username} connected");
+    }
     }
 
     /// <summary>
@@ -518,5 +514,24 @@ public static partial class AuthModule {
 
         ctx.Db.AuditLog.Insert(log);
     }
+
+    // ====================== Gamification API (Public Interface) ======================
+
+    // ... (other reducers) ...
+
+        // ... (other reducers) ...
+
+        /// <summary>
+        /// Get benefits within a certain radius of a user's location.
+        /// </summary>
+        [Reducer]
+        public static void GetBenefitsByLocation(ReducerContext ctx, double latitude, double longitude, double radiusKm)
+        {
+            // TODO: Call the BenefitsModule to get benefits within the radius.
+        }
+
+    // ... (rest of the code) ...
+
+}
 }
 }

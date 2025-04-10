@@ -67,13 +67,13 @@ namespace Kulicha.Services
             try
             {
                 _conn = DbConnection.Builder()
-                    .WithUri(Host)
-                    .WithModuleName(Dbname)
-                    .WithToken(AuthToken.Token) // Load token if it exists
-                    .OnConnect(HandleConnect)
-                    .OnConnectError(HandleConnectError)
-                    .OnDisconnect(HandleDisconnect)
-                    .Build();
+                   .WithUri(Host)
+                   .WithModuleName(Dbname)
+                   .WithToken(AuthToken.Token)
+                   .OnConnect(HandleConnect)
+                   .OnConnectError(HandleConnectError)
+                   .OnDisconnect(HandleDisconnect)
+                   .Build();
 
                 // Register callbacks *after* building the connection object
                 RegisterCallbacks(_conn);
@@ -511,7 +511,7 @@ namespace Kulicha.Services
         private void HandleConnect(DbConnection conn, Identity identity, string authToken)
         {
             _localIdentity = identity;
-            _isConnected = true;
+            _isConnected = true;;
             AuthToken.SaveToken(authToken); // Save the token (potentially new if first connect)
             _logger.LogInformation("Connected to SpacetimeDB with Identity: {Identity}", identity);
 
