@@ -730,8 +730,8 @@ namespace Kulicha.Services
             switch (ctx.Event.Status)
             {
                 case Status.Committed:
-                    _logger.LogInformation("Login Request reducer committed successfully with code {email}.", email);
-                    OnVerifySuccess?.Invoke(email);
+                    _logger.LogInformation("Login Request reducer committed successfully for email {email}.", email);
+                    OnVerifyLoginSuccess?.Invoke(email); // Use the correct event for login verification
                     break;
                 case Status.Failed:
                     _logger.LogInformation("Login Request reducer failed: {Error}", ctx.Event.Status);
