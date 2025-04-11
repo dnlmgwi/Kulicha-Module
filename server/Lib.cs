@@ -2,7 +2,7 @@ using SpacetimeDB;
 using System.Text.RegularExpressions;
 
 namespace StdbModule {
-using Services;
+
 // ====================== Database Table Definitions ======================
 
 /// <summary>
@@ -77,7 +77,7 @@ public static partial class AuthModule {
     private const string EmailPattern = @"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$";
     private const string UsernamePattern = @"^[a-zA-Z0-9_-]{3,20}$";
     private static readonly Random Random = new Random();
-    private static readonly EmailService EmailService = new EmailService();
+    // private static readonly EmailService EmailService = new EmailService();
 
     /// <summary>
     /// Validates an email format
@@ -122,21 +122,24 @@ public static partial class AuthModule {
     /// </summary>
     [Reducer(ReducerKind.ClientConnected)]
     public static void ClientConnected(ReducerContext ctx)
-{
-    Identity identity = ctx.Sender;
+    {
+        Identity identity = ctx.Sender;
 
-    // Assuming the client now provides the auth token as part of the connection metadata.
-    // In a real app, you'd have a more robust way to pass this, possibly through a handshake.
-    // string? authToken = ctx.Args?.Get("authToken")?.ToString();
+        // Assuming the client now provides the auth token as part of the connection metadata.
+        // In a real app, you'd have a more robust way to pass this, possibly through a handshake.
+        // string? authToken = ctx.Args?.Get("authToken")?.ToString();
 
-    var existingUser = ctx.Db.User.Identity.Find(identity);
+        var existingUser = ctx.Db.User.Identity.Find(identity);
 
-    if (existingUser == null) {
-        Log.Error($"Unauthorized connection attempt.");
-        // In a real app, you might want to disconnect the client here.
-    } else {
-        LogInfo(ctx, identity, "UserConnected", $"User {existingUser.Username} connected");
-    }
+        if (existingUser == null)
+        {
+            Log.Error($"Unauthorized connection attempt.");
+            // In a real app, you might want to disconnect the client here.
+        }
+        else
+        {
+            LogInfo(ctx, identity, "UserConnected", $"User {existingUser.Username} connected");
+        }
     }
 
     /// <summary>
@@ -202,7 +205,7 @@ public static partial class AuthModule {
         // In a real app, you would send an email with the verification code
         // For now, we just return it to the user
         Log.Info($"Registration successful! Verification code: {verificationCode}");
-        EmailService.SendVerificationEmailAsync(email, verificationCode);
+        // EmailService.SendVerificationEmailAsync(email, verificationCode);
     }
 
     /// <summary>
@@ -524,19 +527,19 @@ public static partial class AuthModule {
 
     // ... (other reducers) ...
 
-        // ... (other reducers) ...
+    // ... (other reducers) ...
 
-        /// <summary>
-        /// Get benefits within a certain radius of a user's location.
-        /// </summary>
-        [Reducer]
-        public static void GetBenefitsByLocation(ReducerContext ctx, double latitude, double longitude, double radiusKm)
-        {
-            // TODO: Call the BenefitsModule to get benefits within the radius.
-        }
+    /// <summary>
+    /// Get benefits within a certain radius of a user's location.
+    /// </summary>
+    [Reducer]
+    public static void GetBenefitsByLocation(ReducerContext ctx, double latitude, double longitude, double radiusKm)
+    {
+        // TODO: Call the BenefitsModule to get benefits within the radius.
+    }
 
     // ... (rest of the code) ...
 
 }
-}
+
 }
