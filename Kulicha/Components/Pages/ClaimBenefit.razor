@@ -1,0 +1,16 @@
+razor
+@page "/claim-benefit"
+@using Kulicha.Services
+@inject SpacetimeDbService SpacetimeService
+@inject NavigationManager NavigationManager
+@if (!SpacetimeService.IsAuthenticated)
+{
+    NavigationManager.NavigateTo("/auth");
+    return;
+}
+
+<h3>Claim a Benefit</h3>
+<button class="btn btn-primary" @onclick="HandleClaim">Claim</button>
+<p>Claim functionality not yet implemented.</p>
+
+

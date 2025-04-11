@@ -1,0 +1,13 @@
+razor
+@page "/filter-benefits"
+@using Kulicha.Services
+@inject SpacetimeDbService SpacetimeService
+@if (!SpacetimeService.IsAuthenticated)
+{
+    NavigationManager.NavigateTo("/auth/login");
+    return;
+}
+
+<h3>Filter Benefits</h3>
+
+@code { }

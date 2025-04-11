@@ -1,13 +1,66 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
+@using Kulicha.Services
+@inject SpacetimeDbService SpacetimeService
+@inject NavigationManager NavigationManager
 
 <div class="page">
     <div class="sidebar">
-        <NavMenu/>
+        <div class="top-row ps-3 navbar navbar-dark">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="">Kulicha</a>
+            </div>
+        </div>
+        <input type="checkbox" title="Navigation menu" class="navbar-toggler"/>
+        <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+            <nav class="flex-column">
+                @if (SpacetimeService.IsAuthenticated)
+                {
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="/auth/profile">
+                            <span class="oi oi-person" aria-hidden="true"></span> Profile
+                        </NavLink>
+                    </div>
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="/manage-benefits">
+                            <span class="oi oi-list-rich" aria-hidden="true"></span> Manage Benefits
+                        </NavLink>
+                    </div>
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="/claim-benefit">
+                            <span class="oi oi-check" aria-hidden="true"></span> Claim Benefit
+                        </NavLink>
+                    </div>
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="/filter-benefits">
+                            <span class="oi oi-magnifying-glass" aria-hidden="true"></span> Filter Benefits
+                        </NavLink>
+                    </div>
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="/auth/logout" @onclick="HandleLogout">
+                            <span class="oi oi-account-logout" aria-hidden="true"></span> Logout
+                        </NavLink>
+                    </div>
+                }
+                else
+                {
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="/auth/login">
+                            <span class="oi oi-account-login" aria-hidden="true"></span> Login
+                        </NavLink>
+                    </div>
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="/auth/register">
+                            <span class="oi oi-plus" aria-hidden="true"></span> Register
+                        </NavLink>
+                    </div>
+                }
+            </nav>
+        </div>
     </div>
 
     <main>
         <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a> @* This link seems unnecessary for the core app functionality *@
         </div>
 
         <article class="content px-4">
@@ -16,8 +69,17 @@
     </main>
 </div>
 
-<div id="blazor-error-ui">
-    An unhandled error has occurred.
-    <a href="" class="reload">Reload</a>
-    <a class="dismiss">🗙</a>
-</div>
+@* <div id="blazor-error-ui"> *@
+@*     An unhandled error has occurred. *@
+@*     <a href="" class="reload">Reload</a> *@
+@*     <a class="dismiss">🗙</a> *@
+@* </div> *@
+
+@code {
+    private void HandleLogout(MouseEventArgs args)
+    {
+        // This will need to trigger the logout in the Auth component.
+        // For now, we'll simply navigate to the home page after "logging out"
+        NavigationManager.NavigateTo("/", forceLoad: false); // Or to a dedicated logout page if you have one
+    }
+}
