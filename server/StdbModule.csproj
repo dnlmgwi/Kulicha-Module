@@ -9,6 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Resend" Version="0.1.0" />
     <PackageReference Include="SpacetimeDB.Codegen" Version="0.10.1" />
     <PackageReference Include="SpacetimeDB.Runtime" Version="1.0.1" />
   </ItemGroup>
