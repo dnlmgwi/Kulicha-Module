@@ -1,8 +1,8 @@
-using System.Diagnostics;
 using SpacetimeDB;
 using System.Text.RegularExpressions;
 
 namespace StdbModule {
+using Services;
 // ====================== Database Table Definitions ======================
 
 /// <summary>
@@ -77,6 +77,7 @@ public static partial class AuthModule {
     private const string EmailPattern = @"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$";
     private const string UsernamePattern = @"^[a-zA-Z0-9_-]{3,20}$";
     private static readonly Random Random = new Random();
+    private static readonly EmailService EmailService = new EmailService();
 
     /// <summary>
     /// Validates an email format
@@ -201,6 +202,7 @@ public static partial class AuthModule {
         // In a real app, you would send an email with the verification code
         // For now, we just return it to the user
         Log.Info($"Registration successful! Verification code: {verificationCode}");
+        EmailService.SendVerificationEmailAsync(email, verificationCode);
     }
 
     /// <summary>
@@ -222,7 +224,7 @@ public static partial class AuthModule {
         }
 
         if (pendingVerification?.VerificationCode != verificationCode)
-        {   // Verify the code
+        { // Verify the code
             throw new Exception("Invalid verification code."); //TODO Notify User
         }
 
@@ -338,7 +340,7 @@ public static partial class AuthModule {
         if (pendingReg.VerificationCode != verificationCode)
         {
             LogInfo(ctx, identity, "LoginAttemptFailed", "Invalid verification code");
-            Log.Info( "Invalid verification code. Please try again.");
+            Log.Info("Invalid verification code. Please try again.");
         }
 
         // Find the user associated with this email
@@ -348,7 +350,7 @@ public static partial class AuthModule {
             // This should not happen since we checked in RequestLoginCode, but just in case
             ctx.Db.PendingVerification.Delete(pendingReg);
             LogInfo(ctx, identity, "LoginFailed", "User no longer exists");
-            Log.Info( "Account not found. Please contact support.");
+            Log.Info("Account not found. Please contact support.");
         }
 
         // If the user's identity doesn't match the current sender,
@@ -424,12 +426,15 @@ public static partial class AuthModule {
         }
 
 
-        // Validate email
-        if (!IsValidEmail(email))
-            Log.Warn("Invalid email format.");
+        {
+            // Validate email
+            if (!IsValidEmail(email))
+                Log.Warn("Invalid email format.");
+        }
 
         // Check if email is already in use by another user
         var emailExists = ctx.Db.User.Identity.Find(identity);
+
         if (emailExists != null)
             Log.Warn("Email already in use by another account.");
 
