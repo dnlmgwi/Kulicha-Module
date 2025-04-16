@@ -192,7 +192,8 @@
 
     private string ErrorMessage { get; set; } = "";
     private string SuccessMessage { get; set; } = "";
-    private bool IsAuthenticated => SpacetimeService.IsConnected && SpacetimeService.LocalIdentity != null && CurrentUser != null;
+    private bool IsAuthenticated => SpacetimeService.IsConnected && SpacetimeService.LocalIdentity != null;
+    // private bool IsAuthenticated => SpacetimeService.IsConnected && SpacetimeService.LocalIdentity != null && CurrentUser != null;
     private User? CurrentUser { get; set; } // Use nullable User type
 
     // Models for the different forms
