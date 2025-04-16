@@ -52,9 +52,6 @@ namespace Kulicha.Services
 
         public bool IsAuthenticated => _localIdentity != null;
 
-        // Removed InputQueue - use specific methods below
-        // ----------------------
-
         // --- Configuration ---
         /// The URI of the SpacetimeDB instance hosting our module.
         private const string Host = "http://127.0.0.1:3000"; // Or your production URL
@@ -91,6 +88,31 @@ namespace Kulicha.Services
                 // Optionally prevent application startup if connection is critical
                 // throw;
                 return Task.CompletedTask; // Or Task.FromException(ex);
+            }
+
+            return Task.CompletedTask;
+        }
+
+        public Task Logout()
+        {
+            _logger.LogInformation("User logout requested.");
+            if (_conn is { IsActive: true }) // Check if active before disconnecting
+            try
+            {
+                // Clear the local identity
+                _localIdentity = null;
+                _logger.LogInformation("Attempting explicit disconnect from SpacetimeDB.");
+                _conn.Disconnect();
+                
+                // Notify components about the logout
+                OnDisconnect?.Invoke();
+                
+                _logger.LogInformation("User logged out successfully.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during logout process.");
+                OnErrorReceived?.Invoke("Logout", $"Failed to logout: {ex.Message}");
             }
 
             return Task.CompletedTask;
