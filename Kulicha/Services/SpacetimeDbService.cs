@@ -49,6 +49,9 @@ namespace Kulicha.Services
         public bool IsConnected => _isConnected;
         public Identity? LocalIdentity => _localIdentity;
         public string? ConnectionError => _connectionError;
+
+        public bool IsAuthenticated => _localIdentity != null;
+
         // Removed InputQueue - use specific methods below
         // ----------------------
 
@@ -731,7 +734,7 @@ namespace Kulicha.Services
             {
                 case Status.Committed:
                     _logger.LogInformation("Login Request reducer committed successfully for email {email}.", email);
-                    OnVerifyLoginSuccess?.Invoke(email); // Use the correct event for login verification
+                    OnVerifyLoginSuccess?.Invoke(email);
                     break;
                 case Status.Failed:
                     _logger.LogInformation("Login Request reducer failed: {Error}", ctx.Event.Status);
