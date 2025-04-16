@@ -2,6 +2,8 @@ razor
 @page "/filter-benefits"
 @using Kulicha.Services
 @inject SpacetimeDbService SpacetimeService
+@inject NavigationManager NavigationManager
+
 @if (!SpacetimeService.IsAuthenticated)
 {
     NavigationManager.NavigateTo("/auth/login");
