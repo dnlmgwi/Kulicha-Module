@@ -146,7 +146,11 @@
         // Keep the email value (don't reset the form before navigation)
         // Note: This line was redundant: verifyModel.Email = verifyModel.Email;
 
-        await InvokeAsync(StateHasChanged);
+        // Make sure we're on the UI thread when updating state
+        await InvokeAsync(() => 
+        {
+            StateHasChanged();
+        });
 
         // Wait a moment before redirecting to ensure the user sees the success message
         await Task.Delay(2000);
@@ -163,6 +167,8 @@
             ErrorMessage = "";
             Logger.LogInformation(ex, "Redirecting");
             SuccessMessage = "";
+            // Force UI update if there's an error
+            await InvokeAsync(() => StateHasChanged());
         }
 
         // Only reset the form after navigation has been triggered
