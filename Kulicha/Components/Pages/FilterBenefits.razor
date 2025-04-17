@@ -1,11 +1,13 @@
 @page "/filter-benefits"
+@layout MainLayout
+@using Kulicha.Components.Layout
 @using Kulicha.Services
 @inject SpacetimeDbService SpacetimeService
 @inject NavigationManager NavigationManager
 
 @if (!SpacetimeService.IsAuthenticated)
 {
-    NavigationManager.NavigateTo("/auth/login");
+    NavigationManager.NavigateTo("/");
     return;
 }
 
