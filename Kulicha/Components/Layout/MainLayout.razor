@@ -5,7 +5,7 @@
 
 <div class="page">
     <div class="sidebar">
-        <div class="top-row ps-3 navbar navbar-dark">
+        <div class="top-row ps-3">
             <div class="container-fluid">
                 <a class="navbar-brand" href="">Kulicha</a>
             </div>
@@ -16,7 +16,7 @@
                 @if (SpacetimeService.IsAuthenticated)
                 {
                     <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="/auth/profile">
+                        <NavLink class="nav-link" href="/profile">
                             <span class="oi oi-person" aria-hidden="true"></span> Profile
                         </NavLink>
                     </div>
@@ -36,7 +36,7 @@
                         </NavLink>
                     </div>
                     <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="/auth/logout" @onclick="HandleLogout">
+                        <NavLink class="nav-link" href="/logout" @onclick="HandleLogout">
                             <span class="oi oi-account-logout" aria-hidden="true"></span> Logout
                         </NavLink>
                     </div>
@@ -44,7 +44,7 @@
                 else
                 {
                     <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="/auth/login">
+                        <NavLink class="nav-link" href="/login">
                             <span class="oi oi-account-login" aria-hidden="true"></span> Login
                         </NavLink>
                     </div>
