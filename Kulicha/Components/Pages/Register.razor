@@ -1,10 +1,10 @@
 @page "/register"
-@rendermode InteractiveServer
 @using System.ComponentModel.DataAnnotations
 @using Kulicha.Services
 @using Microsoft.Extensions.Logging
 @using SpacetimeDB
 @using SpacetimeDB.Types
+@using Blazorise.Components
 @inject SpacetimeDbService SpacetimeService
 @inject ILogger<Auth> Logger
 @inject NavigationManager NavigationManager
@@ -43,7 +43,7 @@
 
             <EditForm Model="@registerModel" OnValidSubmit="HandleRegister" FormName="register" class="space-y-6">
                 <DataAnnotationsValidator/>
-                <ValidationSummary class="text-red-500 text-sm"/>
+                <Microsoft.AspNetCore.Components.Forms.ValidationSummary class="text-red-500 text-sm"/>
 
                 <div>
                     <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
@@ -66,12 +66,17 @@
                 <div>
                     <label for="role" class="block text-sm font-medium text-gray-700">Role</label>
                     <div class="mt-1">
-                        <InputSelect id="role" @bind-Value="registerModel.Role"
-                                     class="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                        <SelectList
+                            id="role"
+                            @bind-SelectedValue="registerModel.Role"
+                            TItem="RegisterModel"
+                            TValue="int"
+                            DefaultItemText="Choose your country"
+                            class="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
                             <option value="2">Beneficiary</option>
                             <option value="1">Benefactor</option>
                             <option value="0">Auditor</option>
-                        </InputSelect>
+                        </SelectList>
                     </div>
                     <ValidationMessage For="@(() => registerModel.Role)" class="text-red-500 text-sm"/>
                 </div>
@@ -95,6 +100,8 @@
         Verify,
         Profile
     }
+
+    int selectedListValue { get; set; } = 3;
 
     private AuthView CurrentView { get; set; } = AuthView.Register;
     [Parameter]
