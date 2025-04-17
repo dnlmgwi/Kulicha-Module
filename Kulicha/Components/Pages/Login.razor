@@ -1,5 +1,4 @@
 @page "/"
-@rendermode InteractiveServer
 @using System.ComponentModel.DataAnnotations
 @using Kulicha.Services
 @using Microsoft.Extensions.Logging
@@ -9,12 +8,6 @@
 @inject ILogger<Auth> Logger
 @inject NavigationManager NavigationManager
 
-@if (!SpacetimeService.IsAuthenticated)
-{
-    NavigationManager.NavigateTo("/home");
-    return;
-}
-
 <div class="min-h-screen bg-gray-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
     <div class="sm:mx-auto sm:w-full sm:max-w-md">
         <div class="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10 container">
@@ -23,7 +16,6 @@
                 <div class="mb-4 rounded-md bg-red-50 p-4 border border-red-200" role="alert">
                     <div class="flex">
                         <div class="flex-shrink-0">
-                            @* Heroicon: x-circle (optional for visual flair) *@
                             <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
                                  fill="currentColor" aria-hidden="true">
                                 <path fill-rule="evenodd"
@@ -43,7 +35,6 @@
                 <div class="mb-4 rounded-md bg-green-50 p-4 border border-green-200" role="alert">
                     <div class="flex">
                         <div class="flex-shrink-0">
-                            @* Heroicon: check-circle (optional) *@
                             <svg class="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
                                  fill="currentColor" aria-hidden="true">
                                 <path fill-rule="evenodd"
@@ -67,8 +58,7 @@
                 @* Login Form *@
                 <EditForm Model="@loginModel" OnValidSubmit="HandleLogin" FormName="loginForm" class="space-y-6">
                     <DataAnnotationsValidator/>
-                    @* ValidationSummary can be styled or placed differently if needed *@
-                    <ValidationSummary class="mb-4 text-sm text-red-600"/>
+                    <Microsoft.AspNetCore.Components.Forms.ValidationSummary class="mb-4 text-sm text-red-600"/>
 
                     <div>
                         <label for="email" class="block text-sm font-medium text-gray-700">
@@ -84,8 +74,8 @@
                     <div>
                         <button type="submit"
                                 class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-                                disabled="@(!string.IsNullOrEmpty(SuccessMessage) && SuccessMessage.Contains("Processing"))"> @* Disable while processing *@
-                            Login
+                                disabled="@(IsProcessing)"> @* Disable while processing *@
+                            @(IsProcessing ? "Processing..." : "Login")
                         </button>
                     </div>
                 </EditForm>
@@ -95,7 +85,7 @@
                 @* Verification Form *@
                 <EditForm Model="@verifyModel" OnValidSubmit="HandleVerification" FormName="verifyForm" class="space-y-6">
                     <DataAnnotationsValidator/>
-                    <ValidationSummary class="mb-4 text-sm text-red-600"/>
+                    <Microsoft.AspNetCore.Components.Forms.ValidationSummary class="mb-4 text-sm text-red-600"/>
                     
                     <div>
                         <label for="verification-code" class="block text-sm font-medium text-gray-700">
@@ -113,8 +103,8 @@
                     <div class="flex space-x-3">
                         <button type="submit"
                                 class="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-                                disabled="@(!string.IsNullOrEmpty(SuccessMessage) && SuccessMessage.Contains("Verifying"))">
-                            Verify
+                                disabled="@(IsProcessing)">
+                            @(IsProcessing ? "Verifying..." : "Verify")
                         </button>
                         <button type="button" @onclick="() => SwitchView(false)"
                                 class="flex-1 flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
@@ -152,12 +142,10 @@
                         <p>Connected & Authenticated as:</p>
                         <p class="font-mono text-xs bg-gray-100 p-1 inline-block rounded mt-1">@(SpacetimeService.LocalIdentity)</p>
                         <div class="mt-4">
-                            @* Use NavLink for internal navigation or keep as button/<a> if preferred *@
                             <NavLink href="/home" 
                                      class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500">
                                 Go to Dashboard
                             </NavLink>
-
                         </div>
                     }
                 </div>
@@ -171,6 +159,7 @@
 @code {
     // Use a boolean flag to control form visibility instead of enum
     private bool IsVerifyingLogin { get; set; } = false;
+    private bool IsProcessing { get; set; } = false;
     
     [Parameter]
     [SupplyParameterFromQuery(Name = "view")]
@@ -195,13 +184,12 @@
 
     private string ErrorMessage { get; set; } = "";
     private string SuccessMessage { get; set; } = "";
-    // private bool IsAuthenticated => SpacetimeService.IsConnected && SpacetimeService.LocalIdentity != null && CurrentUser != null;
     private User? CurrentUser { get; set; } // Use nullable User type
 
     // Models for the different forms
     private LoginModel loginModel = new LoginModel();
-    private ProfileModel profileModel = new ProfileModel(); // Keep ProfileModel if used elsewhere
-    private VerifyModel verifyModel = new VerifyModel(); // Keep VerifyModel if used elsewhere
+    private ProfileModel profileModel = new ProfileModel(); 
+    private VerifyModel verifyModel = new VerifyModel(); 
 
     // --- LifeCycle Methods ---
     protected override async Task OnInitializedAsync()
@@ -210,18 +198,17 @@
         SpacetimeService.OnConnect += HandleConnectionChange;
         SpacetimeService.OnDisconnect += HandleConnectionChange;
         SpacetimeService.OnIdentityReceived += HandleIdentityReceived;
-        SpacetimeService.OnProfileReceived += HandleProfileReceived; // Subscribe to profile events
+        SpacetimeService.OnProfileReceived += HandleProfileReceived; 
         SpacetimeService.OnErrorReceived += HandleSpacetimeError;
         SpacetimeService.OnVerifyLoginSuccess += HandleLoginSuccess;
 
         // Check initial state
-        HandleConnectionChange(); // This calls StateHasChanged internally
+        HandleConnectionChange(); 
 
-        await base.OnInitializedAsync(); // Ensure base method is called
+        await base.OnInitializedAsync(); 
     }
 
     // --- Event Handlers ---
-
     private void HandleConnectionChange()
     {
         // This logic seems correct, re-evaluates auth state and triggers UI update
@@ -239,7 +226,12 @@
             IsVerifyingLogin = false; // Ensure login form is shown if not authenticated
             CurrentUser = null; // Clear user data
         }
-        InvokeAsync(StateHasChanged); // Ensure UI reflects the connection state change
+        
+        // Reset processing state when connection changes
+        IsProcessing = false;
+        
+        // Use InvokeAsync to ensure UI updates happen on the UI thread
+        InvokeAsync(StateHasChanged);
     }
 
     private void HandleIdentityReceived(Identity identity)
@@ -248,9 +240,12 @@
         // Now that we have identity, request profile if not already loaded
         if (CurrentUser == null)
         {
-            _ = LoadProfile();
+            _ = LoadProfile(); // Fire and forget profile load
         }
-        // Don't necessarily need StateHasChanged here if LoadProfile triggers it or OnProfileReceived does
+        
+        // Reset processing state when identity is received
+        IsProcessing = false;
+        
         InvokeAsync(StateHasChanged); // Update UI to show identity
     }
 
@@ -258,30 +253,34 @@
     {
         Logger.LogInformation("Profile received for user: {Username}", user?.Username ?? "[No Username]");
         CurrentUser = user;
+        IsProcessing = false;
+        
         if (CurrentUser != null)
         {
-            // Populate the profile model if needed elsewhere, but not directly used in this view's rendering
+            // Populate the profile model if needed elsewhere
             profileModel = new ProfileModel
             {
                 Email = CurrentUser.Email ?? ""
-                // Populate other fields as needed
             };
             
             // Navigate to Home page after successful profile retrieval
             Logger.LogInformation("User authenticated successfully, navigating to Home page");
+            
+            // Use NavigateTo for client-side navigation to preserve the SignalR connection
             NavigationManager.NavigateTo("/home");
+            return; // Exit early since we're navigating away
         }
         else
         {
             Logger.LogWarning("Received null profile data?");
             ErrorMessage = "Received invalid profile data.";
         }
-        // Ensure UI updates to reflect profile load (e.g., enable profile button if it depended on CurrentUser)
+        
         InvokeAsync(StateHasChanged);
     }
 
     // Triggered when the verification code is sent successfully
-    private void HandleLoginSuccess(string email) // Receives email from the event
+    private void HandleLoginSuccess(string email) 
     {
         Logger.LogInformation("Login request processed for: {Email}. Verification code sent.", email);
         ErrorMessage = "";
@@ -292,6 +291,7 @@
         
         // Show verification form
         IsVerifyingLogin = true;
+        IsProcessing = false;
         
         // Ensure UI updates to show verification form
         InvokeAsync(StateHasChanged);
@@ -303,22 +303,22 @@
         // Display a user-friendly message based on the error type/message if possible
         ErrorMessage = $"Error: {errorMessage}";
         SuccessMessage = ""; // Clear success message on error
+        IsProcessing = false; // Reset processing state on error
         await InvokeAsync(StateHasChanged);
     }
 
     // --- Form Submission Handlers ---
-
     private async Task HandleLogin()
     {
         ErrorMessage = ""; // Clear previous error
         SuccessMessage = "Processing Login Request...";
+        IsProcessing = true; // Set processing state
         await InvokeAsync(StateHasChanged); // Show immediate feedback
 
         Logger.LogInformation("Attempting to request login code for: {email}", loginModel.Email);
 
         try
         {
-
             SpacetimeService.RequestLoginCode(loginModel.Email);
             // Success message will be updated by HandleLoginSuccess event handler
         }
@@ -327,26 +327,27 @@
             Logger.LogError(ex, "Error requesting login code for {Email}", loginModel.Email);
             ErrorMessage = $"Failed to send login request: {ex.Message}";
             SuccessMessage = "";
+            IsProcessing = false;
             await InvokeAsync(StateHasChanged);
         }
     }
 
-
-    // HandleVerification and HandleProfileUpdate remain if needed for other views (Verify, Profile)
-    private void HandleVerification()
+    private async Task HandleVerification()
     {
         try
         {
             ErrorMessage = "";
             SuccessMessage = "Verifying code...";
-            Logger.LogInformation("Attempting email verification with code: {VerificationCode} for email {Email}", verifyModel.VerificationCode, verifyModel.Email);
+            IsProcessing = true;
+            await InvokeAsync(StateHasChanged); // Show immediate feedback
+            
+            Logger.LogInformation("Attempting email verification with code: {VerificationCode} for email {Email}", 
+                verifyModel.VerificationCode, verifyModel.Email);
 
             // This should trigger the actual connection/authentication with the token/identity
             SpacetimeService.VerifyLogin(verifyModel.VerificationCode, verifyModel.Email);
 
             // Success/failure will be handled by OnConnect/OnIdentityReceived/OnErrorReceived events
-            // SuccessMessage = "Verification request sent. Attempting to log in..."; // Feedback
-            // SwitchView(AuthView.Login); // Go back to login/status view
             verifyModel = new VerifyModel(); // Clear form
         }
         catch (Exception ex)
@@ -354,38 +355,9 @@
             ErrorMessage = $"Verification failed: {ex.Message}";
             Logger.LogError(ex, "Error during email verification submission");
             SuccessMessage = "";
+            IsProcessing = false;
+            await InvokeAsync(StateHasChanged);
         }
-        InvokeAsync(StateHasChanged); // Update UI
-    }
-
-    private void HandleProfileUpdate()
-    {
-        if (!SpacetimeService.IsAuthenticated || CurrentUser == null)
-        { /* ... error handling ... */
-            return;
-        }
-
-        try
-        {
-            ErrorMessage = "";
-            SuccessMessage = "Updating profile...";
-            Logger.LogInformation("Attempting to update profile for user: {Identity}", SpacetimeService.LocalIdentity);
-
-            SpacetimeService.UpdateProfile(
-            profileModel.Email // Assuming only email is updatable here
-            // Pass other fields if applicable
-            );
-
-            // Success/failure handled by OnProfileReceived / OnErrorReceived
-            SuccessMessage = "Profile update request sent.";
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage = $"Profile update failed: {ex.Message}";
-            Logger.LogError(ex, "Error during profile update submission");
-            SuccessMessage = "";
-        }
-        InvokeAsync(StateHasChanged); // Update UI
     }
 
     private async Task LoadProfile()
@@ -393,25 +365,21 @@
         if (!SpacetimeService.IsAuthenticated)
         {
             Logger.LogWarning("LoadProfile called but not authenticated.");
-            // ErrorMessage = "You must be logged in to view your profile."; // Avoid overwriting other messages?
             return;
         }
 
         try
         {
             Logger.LogInformation("Requesting profile data from SpacetimeDB.");
-            // ErrorMessage = ""; // Clear previous errors
-            // SuccessMessage = "Loading profile..."; // Provide feedback
             SpacetimeService.RequestProfile(); // Service handles request/response and events
         }
         catch (Exception ex)
         {
             ErrorMessage = $"Error loading profile: {ex.Message}";
             Logger.LogError(ex, "Error requesting user profile");
-            // SuccessMessage = ""; // Clear loading message
+            IsProcessing = false;
+            await InvokeAsync(StateHasChanged);
         }
-        // State update will happen via HandleProfileReceived or HandleSpacetimeError
-        await InvokeAsync(StateHasChanged); // Not strictly necessary here if events handle it
     }
 
     private void SwitchView(bool showVerifyForm)
@@ -420,6 +388,7 @@
         IsVerifyingLogin = showVerifyForm;
         ErrorMessage = ""; // Clear messages on view switch
         SuccessMessage = "";
+        IsProcessing = false; // Reset processing state when switching views
         InvokeAsync(StateHasChanged); // Ensure UI updates
     }
 
@@ -428,20 +397,21 @@
         Logger.LogInformation("Logout requested.");
         ErrorMessage = "";
         SuccessMessage = "Logging out...";
+        IsProcessing = true;
         await InvokeAsync(StateHasChanged); // Show immediate feedback
+        
         try
         {
             await SpacetimeService.DisconnectAsync();
-            // State change (IsAuthenticated = false) will be handled by OnDisconnect triggering HandleConnectionChange
-            // which will update the UI automatically.
-            // SuccessMessage = ""; // Clear logging out message after disconnect event fires
+            // State change will be handled by OnDisconnect triggering HandleConnectionChange
         }
         catch (Exception ex)
         {
             ErrorMessage = $"Logout failed: {ex.Message}";
             Logger.LogError(ex, "Error during logout");
-            SuccessMessage = ""; // Clear logging out message
-            await InvokeAsync(StateHasChanged); // Show error
+            SuccessMessage = ""; 
+            IsProcessing = false;
+            await InvokeAsync(StateHasChanged); 
         }
     }
 
@@ -459,8 +429,6 @@
     }
 
     // --- Models ---
-    // Keep Models as they are, Tailwind doesn't affect them
-
     public class LoginModel {
         [Required(ErrorMessage = "Email is required.")]
         [EmailAddress(ErrorMessage = "Please enter a valid email address.")]
@@ -474,7 +442,7 @@
         [RegularExpression(@"^[a-zA-Z0-9]+$", ErrorMessage = "Verification code can only contain letters and numbers")]
         public string VerificationCode { get; set; } = "";
 
-        [Required(ErrorMessage = "Email is required for verification context.")] // Keep email if needed by VerifyLogin service method
+        [Required(ErrorMessage = "Email is required for verification context.")] 
         [EmailAddress]
         public string Email { get; set; } = "";
     }
@@ -484,6 +452,5 @@
         [EmailAddress]
         [StringLength(254)]
         public string Email { get; set; } = "";
-        // Add other profile fields if they are editable
     }
 }
