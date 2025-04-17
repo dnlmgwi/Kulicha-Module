@@ -1,34 +1,40 @@
-﻿@page "/home"
+@page "/home"
+@layout MainLayout
+@using Kulicha.Components.Layout
 @using System.ComponentModel.DataAnnotations
 @using SpacetimeDB
 @using SpacetimeDB.Types
 @rendermode InteractiveServer
 @using Kulicha.Services
 @using Microsoft.Extensions.Logging
+@using LeafletForBlazor
 @inject SpacetimeDbService SpacetimeService
 @inject ILogger<Auth> Logger
 @inject NavigationManager NavigationManager
 
-<div class="min-h-screen bg-gray-100">
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="text-center">
-                <h1 class="text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl md:text-6xl">
-                    <span class="block">Welcome to</span>
-                    <span class="block text-indigo-600">Kulicha</span>
-                </h1>
-                <button @onclick="HandleLogout"
-                        class="ml-3 inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                    Logout
-                </button>
+<div class="min-h-screen bg-gray-100 flex">
+        <!-- Page Content -->
+        <div class="py-12">
+            <div>
+                <RealTimeMap Parameters="@_parameters" height="100%" width="100$"></RealTimeMap>
             </div>
         </div>
-    </div>
 </div>
 
 @code {
     // Use a boolean flag to control form visibility instead of enum
     private bool IsVerifyingLogin { get; set; } = false;
+
+    readonly RealTimeMap.LoadParameters _parameters = new RealTimeMap.LoadParameters() //general map settings
+    {
+        location = new RealTimeMap.Location()
+        {
+            latitude = 44.4501715,
+            longitude = 26.1107672,
+        },
+        zoomLevel = 18
+    };
+
 
     [Parameter]
     [SupplyParameterFromQuery(Name = "view")]
@@ -36,7 +42,7 @@
 
     protected override void OnParametersSet()
     {
-        // Handle query parameter for view
+// Handle query parameter for view
         if (!string.IsNullOrEmpty(View))
         {
             if (View.Equals("verify", StringComparison.OrdinalIgnoreCase))
@@ -53,33 +59,33 @@
 
     private string ErrorMessage { get; set; } = "";
     private string SuccessMessage { get; set; } = "";
-    // private bool IsAuthenticated => SpacetimeService.IsConnected && SpacetimeService.LocalIdentity != null && CurrentUser != null;
+// private bool IsAuthenticated => SpacetimeService.IsConnected && SpacetimeService.LocalIdentity != null && CurrentUser != null;
     private User? CurrentUser { get; set; } // Use nullable User type
 
-    // Models for the different forms
+// Models for the different forms
     private ProfileModel profileModel = new ProfileModel(); // Keep ProfileModel if used elsewhere
 
-    // --- LifeCycle Methods ---
+// --- LifeCycle Methods ---
     protected override async Task OnInitializedAsync()
     {
-        // Subscribe to events
+// Subscribe to events
         SpacetimeService.OnConnect += HandleConnectionChange;
         SpacetimeService.OnDisconnect += HandleConnectionChange;
         SpacetimeService.OnIdentityReceived += HandleIdentityReceived;
         SpacetimeService.OnProfileReceived += HandleProfileReceived; // Subscribe to profile events
         SpacetimeService.OnErrorReceived += HandleSpacetimeError;
 
-        // Check initial state
+// Check initial state
         HandleConnectionChange(); // This calls StateHasChanged internally
 
         await base.OnInitializedAsync(); // Ensure base method is called
     }
 
-    // --- Event Handlers ---
+// --- Event Handlers ---
 
     private void HandleConnectionChange()
     {
-        // This logic seems correct, re-evaluates auth state and triggers UI update
+// This logic seems correct, re-evaluates auth state and triggers UI update
         if (SpacetimeService.IsAuthenticated)
         {
             Logger.LogInformation("Authenticated. Attempting to load profile if not already loaded.");
@@ -100,12 +106,12 @@
     private void HandleIdentityReceived(Identity identity)
     {
         Logger.LogInformation("Identity received: {Identity}", identity);
-        // Now that we have identity, request profile if not already loaded
+// Now that we have identity, request profile if not already loaded
         if (CurrentUser == null)
         {
             _ = LoadProfile();
         }
-        // Don't necessarily need StateHasChanged here if LoadProfile triggers it or OnProfileReceived does
+// Don't necessarily need StateHasChanged here if LoadProfile triggers it or OnProfileReceived does
         InvokeAsync(StateHasChanged); // Update UI to show identity
     }
 
@@ -115,14 +121,14 @@
         CurrentUser = user;
         if (CurrentUser != null)
         {
-            // Populate the profile model if needed elsewhere, but not directly used in this view's rendering
+// Populate the profile model if needed elsewhere, but not directly used in this view's rendering
             profileModel = new ProfileModel
             {
                 Email = CurrentUser.Email ?? ""
-                // Populate other fields as needed
+// Populate other fields as needed
             };
 
-            // Navigate to Home page after successful profile retrieval
+// Navigate to Home page after successful profile retrieval
             Logger.LogInformation("User authenticated successfully, navigating to Home page");
             NavigationManager.NavigateTo("/home");
         }
@@ -131,20 +137,18 @@
             Logger.LogWarning("Received null profile data?");
             ErrorMessage = "Received invalid profile data.";
         }
-        // Ensure UI updates to reflect profile load (e.g., enable profile button if it depended on CurrentUser)
+// Ensure UI updates to reflect profile load (e.g., enable profile button if it depended on CurrentUser)
         InvokeAsync(StateHasChanged);
     }
 
     private async void HandleSpacetimeError(string errorType, string errorMessage)
     {
         Logger.LogError("SpacetimeDB Error ({ErrorType}): {ErrorMessage}", errorType, errorMessage);
-        // Display a user-friendly message based on the error type/message if possible
+// Display a user-friendly message based on the error type/message if possible
         ErrorMessage = $"Error: {errorMessage}";
         SuccessMessage = ""; // Clear success message on error
         await InvokeAsync(StateHasChanged);
     }
-
-    // --- Form Submission Handlers ---
 
     private void HandleProfileUpdate()
     {
@@ -161,10 +165,10 @@
 
             SpacetimeService.UpdateProfile(
             profileModel.Email // Assuming only email is updatable here
-            // Pass other fields if applicable
+// Pass other fields if applicable
             );
 
-            // Success/failure handled by OnProfileReceived / OnErrorReceived
+// Success/failure handled by OnProfileReceived / OnErrorReceived
             SuccessMessage = "Profile update request sent.";
         }
         catch (Exception ex)
@@ -181,30 +185,30 @@
         if (!SpacetimeService.IsAuthenticated)
         {
             Logger.LogWarning("LoadProfile called but not authenticated.");
-            // ErrorMessage = "You must be logged in to view your profile."; // Avoid overwriting other messages?
+// ErrorMessage = "You must be logged in to view your profile."; // Avoid overwriting other messages?
             return;
         }
 
         try
         {
             Logger.LogInformation("Requesting profile data from SpacetimeDB.");
-            // ErrorMessage = ""; // Clear previous errors
-            // SuccessMessage = "Loading profile..."; // Provide feedback
+// ErrorMessage = ""; // Clear previous errors
+// SuccessMessage = "Loading profile..."; // Provide feedback
             SpacetimeService.RequestProfile(); // Service handles request/response and events
         }
         catch (Exception ex)
         {
             ErrorMessage = $"Error loading profile: {ex.Message}";
             Logger.LogError(ex, "Error requesting user profile");
-            // SuccessMessage = ""; // Clear loading message
+// SuccessMessage = ""; // Clear loading message
         }
-        // State update will happen via HandleProfileReceived or HandleSpacetimeError
+// State update will happen via HandleProfileReceived or HandleSpacetimeError
         await InvokeAsync(StateHasChanged); // Not strictly necessary here if events handle it
     }
 
     private void SwitchView(bool showVerifyForm)
     {
-        // Simplified: Just set the flag and update state
+// Simplified: Just set the flag and update state
         IsVerifyingLogin = showVerifyForm;
         ErrorMessage = ""; // Clear messages on view switch
         SuccessMessage = "";
@@ -219,7 +223,6 @@
         await InvokeAsync(StateHasChanged); // Show immediate feedback
         try
         {
-            await SpacetimeService.Logout();
             await SpacetimeService.DisconnectAsync();
 
         }
@@ -232,10 +235,10 @@
         }
     }
 
-    // --- IDisposable ---
+// --- IDisposable ---
     public void Dispose()
     {
-        // Unsubscribe from events to prevent memory leaks
+// Unsubscribe from events to prevent memory leaks
         SpacetimeService.OnConnect -= HandleConnectionChange;
         SpacetimeService.OnDisconnect -= HandleConnectionChange;
         SpacetimeService.OnIdentityReceived -= HandleIdentityReceived;
@@ -244,7 +247,7 @@
         GC.SuppressFinalize(this);
     }
 
-    // --- Models ---
+// --- Models ---
     public class ProfileModel {
         [Required]
         [EmailAddress]
