@@ -1,0 +1,16 @@
+@page "/filter-benefits"
+@layout MainLayout
+@using Kulicha.Components.Layout
+@using Kulicha.Services
+@inject SpacetimeDbService SpacetimeService
+@inject NavigationManager NavigationManager
+
+@if (!SpacetimeService.IsAuthenticated)
+{
+    NavigationManager.NavigateTo("/");
+    return;
+}
+
+<h3>Filter Benefits</h3>
+
+@code { }

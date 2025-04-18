@@ -30,18 +30,18 @@
                     <p class="text-muted">Enter the verification code sent to your email</p>
                     <EditForm Model="@verifyModel" OnValidSubmit="HandleVerification" FormName="verify">
                         <DataAnnotationsValidator/>
-                        <ValidationSummary/>
+                        <Microsoft.AspNetCore.Components.Forms.ValidationSummary/>
 
                         <div class="mb-3">
                             <label for="email" class="form-label">Email</label>
-                            <InputText id="email" @bind-Value="verifyModel.Email" type="email"
+                            <InputText id="email" @bind="verifyModel.Email" type="email"
                                        class="form-control"/>
                             <ValidationMessage For="@(() => verifyModel.Email)"/>
                         </div>
 
                         <div class="mb-3">
                             <label for="verificationCode" class="form-label">Verification Code</label>
-                            <InputText id="verificationCode" @bind-Value="verifyModel.VerificationCode"
+                            <InputText id="verificationCode" @bind="verifyModel.VerificationCode"
                                        class="form-control"/>
                             <ValidationMessage For="@(() => verifyModel.VerificationCode)"/>
                         </div>
@@ -146,7 +146,11 @@
         // Keep the email value (don't reset the form before navigation)
         // Note: This line was redundant: verifyModel.Email = verifyModel.Email;
 
-        await InvokeAsync(StateHasChanged);
+        // Make sure we're on the UI thread when updating state
+        await InvokeAsync(() => 
+        {
+            StateHasChanged();
+        });
 
         // Wait a moment before redirecting to ensure the user sees the success message
         await Task.Delay(2000);
@@ -163,6 +167,8 @@
             ErrorMessage = "";
             Logger.LogInformation(ex, "Redirecting");
             SuccessMessage = "";
+            // Force UI update if there's an error
+            await InvokeAsync(() => StateHasChanged());
         }
 
         // Only reset the form after navigation has been triggered

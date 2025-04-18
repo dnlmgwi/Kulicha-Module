@@ -1,4 +1,4 @@
-﻿@* @page "/" *@
+@* @page "/" *@
 @* @using System.ComponentModel.DataAnnotations *@
 @* @using Kulicha.Services *@
 @* @using Microsoft.Extensions.Logging *@
@@ -466,7 +466,7 @@
 @*             SuccessMessage = "Loading profile..."; // Provide feedback *@
 @*             // The SpacetimeDBService should handle the actual request/response *@
 @*             // We just trigger the request here. *@
-@*             SpacetimeService.RequestProfile(); *@
+@*             // Placeholder: SpacetimeService.RequestProfile(); *@
 @*         } *@
 @*         catch (Exception ex) *@
 @*         { *@
@@ -526,19 +526,20 @@
 @*             Logger.LogInformation("Attempting to register user: {Username}", registerModel.Username); *@
 @* *@
 @*             // Assume SpacetimeDBService takes care of sending the command *@
-@*             // The service should expose a method like RegisterUser *@
-@*             SpacetimeService.RegisterUser( *@
-@*             registerModel.Username, *@
-@*             registerModel.Email, *@
-@*             registerModel.Role *@
-@*             // registerModel.Latitude, *@
-@*             // registerModel.Longitude, *@
-@*             // registerModel.Address, *@
-@*             // registerModel.City, *@
-@*             // registerModel.State, *@
-@*             // registerModel.Country, *@
-@*             // registerModel.PostalCode *@
-@*             ); *@
+@*             // Placeholder: SpacetimeService.RegisterUser(registerModel.Username, registerModel.Email, registerModel.Role); *@
+@*             // The following code was commented out: *@
+@*             // SpacetimeService.RegisterUser( *@
+@*             // registerModel.Username, *@
+@*             // registerModel.Email, *@
+@*             // registerModel.Role *@
+@*             // // registerModel.Latitude, *@
+@*             // // registerModel.Longitude, *@
+@*             // // registerModel.Address, *@
+@*             // // registerModel.City, *@
+@*             // // registerModel.State, *@
+@*             // // registerModel.Country, *@
+@*             // // registerModel.PostalCode *@
+@*             // ); *@
 @* *@
 @*             // Important: We don't know if registration succeeded yet. *@
 @*             // The backend should send a response (e.g., success + verification needed, or failure). *@
@@ -576,7 +577,7 @@
 @*             Logger.LogInformation("Attempting email verification with code: {VerificationCode}", verifyModel.VerificationCode); *@
 @* *@
 @*             // Assume SpacetimeDBService takes care of sending the command *@
-@*             SpacetimeService.VerifyEmail(verifyModel.VerificationCode, verifyModel.Email); *@
+@*             // Placeholder: SpacetimeService.VerifyEmail(verifyModel.VerificationCode, verifyModel.Email); *@
 @* *@
 @*             // Again, we assume success for now. Backend should confirm. *@
 @*             // The SpacetimeDBService should receive confirmation and potentially trigger login/identity. *@
@@ -612,16 +613,7 @@
 @*             Logger.LogInformation("Attempting to update profile for user: {Username}", CurrentUser.Username); *@
 @* *@
 @*             // Assume SpacetimeDBService takes care of sending the command *@
-@*             SpacetimeService.UpdateProfile( *@
-@*             profileModel.Email // Assuming email can be updated *@
-@*             // profileModel.Latitude, *@
-@*             // profileModel.Longitude, *@
-@*             // profileModel.Address, *@
-@*             // profileModel.City, *@
-@*             // profileModel.State, *@
-@*             // profileModel.Country, *@
-@*             // profileModel.PostalCode *@
-@*             ); *@
+@*             // Placeholder: SpacetimeService.UpdateProfile(profileModel.Email); // Assuming email is the only updatable field for now *@
 @* *@
 @*             // Assume success, backend should confirm and ideally send back updated profile *@
 @*             SuccessMessage = "Profile update request sent."; *@
@@ -644,7 +636,7 @@
 @*             ErrorMessage = ""; *@
 @*             SuccessMessage = "Logging out..."; *@
 @*             // Disconnect from SpacetimeDB *@
-@*             await SpacetimeService.DisconnectAsync(); // Assuming an async disconnect method *@
+@*             // Placeholder: await SpacetimeService.DisconnectAsync(); *@
 @*             // NavigationManager.NavigateTo("/", true); // Force reload can be disruptive, handle via state change *@
 @*             // The HandleConnectionChange method should detect disconnection and switch view *@
 @*         } *@

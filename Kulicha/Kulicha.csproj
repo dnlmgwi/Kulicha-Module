@@ -7,6 +7,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <PackageReference Include="LeafletForBlazor" Version="2.2.4" />
       <PackageReference Include="SpacetimeDB.ClientSDK" Version="1.0.2" />
       <PackageReference Include="SpacetimeDB.Runtime" Version="1.0.1" />
     </ItemGroup>
@@ -14,17 +15,10 @@
     <ItemGroup>
       <Folder Include="module_bindings\" />
     </ItemGroup>
-    <ItemGroup>
-        <Watch Include="./Styles/tailwind.css" Exclude="./wwwroot/**/*;obj\**\*;bin\**\*" />
-    </ItemGroup>
-    <Target Name="TailwindDebug" BeforeTargets="Compile" Condition="'$(Configuration)' == 'Debug'">
-        <Exec Command="npx tailwindcss -i ./Styles/tailwind.css -o ./wwwroot/tailwind.css --minify" />
-    </Target>
-    <!--Rebuilds the Tailwind CSS file-->
-    <Target Name="Tailwind" BeforeTargets="Compile">
-        <Exec Command="npx tailwindcss -i ./Styles/tailwind.css -o ./wwwroot/styles.css" />
-    </Target>
-    <Target Name="TailwindDebug" BeforeTargets="Compile" Condition="'$(Configuration)' == 'Debug'">
-        <Exec Command="npx tailwindcss -i ./Styles/tailwind.css -o ./wwwroot/tailwind.css --minify" />
-    </Target>
+<!--    <ItemGroup>-->
+<!--        <Watch Include="./styles/tailwind.css" Exclude="./wwwroot/**/*;obj\**\*;bin\**\*" />-->
+<!--    </ItemGroup>-->
+<!--    <Target Name="TailwindDebug" BeforeTargets="Compile" Condition="'$(Configuration)' == 'Debug'">-->
+<!--        <Exec Command="npx tailwindcss -i ./styles/tailwind.css -o ./wwwroot/tailwind.css &#45;&#45;minify" />-->
+<!--    </Target>-->
 </Project>

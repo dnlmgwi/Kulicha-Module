@@ -1,10 +1,5 @@
 using Kulicha.Components;
 using Kulicha.Services;
-// using Kulicha.Components; // Namespace for App
-// using SpacetimeDB; // Implicitly used by the service
-// using SpacetimeDB.Types; // Implicitly used by the service
-// using System.Collections.Concurrent; // Implicitly used by the service
-// using System.Threading; // Implicitly used by the service
 
 var builder = WebApplication.CreateBuilder(args);
 

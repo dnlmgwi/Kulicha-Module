@@ -1,0 +1,26 @@
+@page "/manage-benefits"
+@layout MainLayout
+@using Kulicha.Components.Layout
+@using Kulicha.Services
+@inject SpacetimeDbService SpacetimeService
+@inject NavigationManager NavigationManager
+
+<h3>Available Benefits</h3>
+
+<ul>
+    <li>Benefit A</li>
+    <li>Benefit B</li>
+    <li>Benefit C</li>
+</ul>
+
+
+
+@code {
+    protected override void OnInitialized()
+    {
+        if (!SpacetimeService.IsAuthenticated)
+        {
+            NavigationManager.NavigateTo("/auth");
+        }
+    }
+}

@@ -1,7 +1,257 @@
-﻿@* @page "/" *@
-@* *@
-@* <PageTitle>Home</PageTitle> *@
-@* *@
-@* <h1>Hello, world!</h1> *@
-@* *@
-@* Welcome to your new app. *@
+@page "/home"
+@layout MainLayout
+@using Kulicha.Components.Layout
+@using System.ComponentModel.DataAnnotations
+@using SpacetimeDB
+@using SpacetimeDB.Types
+@rendermode InteractiveServer
+@using Kulicha.Services
+@using Microsoft.Extensions.Logging
+@using LeafletForBlazor
+@inject SpacetimeDbService SpacetimeService
+@inject ILogger<Auth> Logger
+@inject NavigationManager NavigationManager
+
+<div class="min-h-screen bg-gray-100 flex">
+        <!-- Page Content -->
+        <div class="py-12">
+            <div>
+                <RealTimeMap Parameters="@_parameters" height="100%" width="100$"></RealTimeMap>
+            </div>
+        </div>
+</div>
+
+@code {
+    // Use a boolean flag to control form visibility instead of enum
+    private bool IsVerifyingLogin { get; set; } = false;
+
+    readonly RealTimeMap.LoadParameters _parameters = new RealTimeMap.LoadParameters() //general map settings
+    {
+        location = new RealTimeMap.Location()
+        {
+            latitude = 44.4501715,
+            longitude = 26.1107672,
+        },
+        zoomLevel = 18
+    };
+
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "view")]
+    public string? View { get; set; }
+
+    protected override void OnParametersSet()
+    {
+// Handle query parameter for view
+        if (!string.IsNullOrEmpty(View))
+        {
+            if (View.Equals("verify", StringComparison.OrdinalIgnoreCase))
+            {
+                IsVerifyingLogin = true;
+            }
+            else if (View.Equals("login", StringComparison.OrdinalIgnoreCase))
+            {
+                IsVerifyingLogin = false;
+            }
+        }
+        base.OnParametersSet();
+    }
+
+    private string ErrorMessage { get; set; } = "";
+    private string SuccessMessage { get; set; } = "";
+// private bool IsAuthenticated => SpacetimeService.IsConnected && SpacetimeService.LocalIdentity != null && CurrentUser != null;
+    private User? CurrentUser { get; set; } // Use nullable User type
+
+// Models for the different forms
+    private ProfileModel profileModel = new ProfileModel(); // Keep ProfileModel if used elsewhere
+
+// --- LifeCycle Methods ---
+    protected override async Task OnInitializedAsync()
+    {
+// Subscribe to events
+        SpacetimeService.OnConnect += HandleConnectionChange;
+        SpacetimeService.OnDisconnect += HandleConnectionChange;
+        SpacetimeService.OnIdentityReceived += HandleIdentityReceived;
+        SpacetimeService.OnProfileReceived += HandleProfileReceived; // Subscribe to profile events
+        SpacetimeService.OnErrorReceived += HandleSpacetimeError;
+
+// Check initial state
+        HandleConnectionChange(); // This calls StateHasChanged internally
+
+        await base.OnInitializedAsync(); // Ensure base method is called
+    }
+
+// --- Event Handlers ---
+
+    private void HandleConnectionChange()
+    {
+// This logic seems correct, re-evaluates auth state and triggers UI update
+        if (SpacetimeService.IsAuthenticated)
+        {
+            Logger.LogInformation("Authenticated. Attempting to load profile if not already loaded.");
+            if (CurrentUser == null) // Only load if we don't have it yet
+            {
+                _ = LoadProfile(); // Fire and forget profile load
+            }
+        }
+        else
+        {
+            Logger.LogInformation("Not authenticated. Resetting view to Login.");
+            IsVerifyingLogin = false; // Ensure login form is shown if not authenticated
+            CurrentUser = null; // Clear user data
+        }
+        InvokeAsync(StateHasChanged); // Ensure UI reflects the connection state change
+    }
+
+    private void HandleIdentityReceived(Identity identity)
+    {
+        Logger.LogInformation("Identity received: {Identity}", identity);
+// Now that we have identity, request profile if not already loaded
+        if (CurrentUser == null)
+        {
+            _ = LoadProfile();
+        }
+// Don't necessarily need StateHasChanged here if LoadProfile triggers it or OnProfileReceived does
+        InvokeAsync(StateHasChanged); // Update UI to show identity
+    }
+
+    private void HandleProfileReceived(User user)
+    {
+        Logger.LogInformation("Profile received for user: {Username}", user?.Username ?? "[No Username]");
+        CurrentUser = user;
+        if (CurrentUser != null)
+        {
+// Populate the profile model if needed elsewhere, but not directly used in this view's rendering
+            profileModel = new ProfileModel
+            {
+                Email = CurrentUser.Email ?? ""
+// Populate other fields as needed
+            };
+
+// Navigate to Home page after successful profile retrieval
+            Logger.LogInformation("User authenticated successfully, navigating to Home page");
+            NavigationManager.NavigateTo("/home");
+        }
+        else
+        {
+            Logger.LogWarning("Received null profile data?");
+            ErrorMessage = "Received invalid profile data.";
+        }
+// Ensure UI updates to reflect profile load (e.g., enable profile button if it depended on CurrentUser)
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async void HandleSpacetimeError(string errorType, string errorMessage)
+    {
+        Logger.LogError("SpacetimeDB Error ({ErrorType}): {ErrorMessage}", errorType, errorMessage);
+// Display a user-friendly message based on the error type/message if possible
+        ErrorMessage = $"Error: {errorMessage}";
+        SuccessMessage = ""; // Clear success message on error
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void HandleProfileUpdate()
+    {
+        if (!SpacetimeService.IsAuthenticated || CurrentUser == null)
+        { /* ... error handling ... */
+            return;
+        }
+
+        try
+        {
+            ErrorMessage = "";
+            SuccessMessage = "Updating profile...";
+            Logger.LogInformation("Attempting to update profile for user: {Identity}", SpacetimeService.LocalIdentity);
+
+            SpacetimeService.UpdateProfile(
+            profileModel.Email // Assuming only email is updatable here
+// Pass other fields if applicable
+            );
+
+// Success/failure handled by OnProfileReceived / OnErrorReceived
+            SuccessMessage = "Profile update request sent.";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Profile update failed: {ex.Message}";
+            Logger.LogError(ex, "Error during profile update submission");
+            SuccessMessage = "";
+        }
+        InvokeAsync(StateHasChanged); // Update UI
+    }
+
+    private async Task LoadProfile()
+    {
+        if (!SpacetimeService.IsAuthenticated)
+        {
+            Logger.LogWarning("LoadProfile called but not authenticated.");
+// ErrorMessage = "You must be logged in to view your profile."; // Avoid overwriting other messages?
+            return;
+        }
+
+        try
+        {
+            Logger.LogInformation("Requesting profile data from SpacetimeDB.");
+// ErrorMessage = ""; // Clear previous errors
+// SuccessMessage = "Loading profile..."; // Provide feedback
+            SpacetimeService.RequestProfile(); // Service handles request/response and events
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error loading profile: {ex.Message}";
+            Logger.LogError(ex, "Error requesting user profile");
+// SuccessMessage = ""; // Clear loading message
+        }
+// State update will happen via HandleProfileReceived or HandleSpacetimeError
+        await InvokeAsync(StateHasChanged); // Not strictly necessary here if events handle it
+    }
+
+    private void SwitchView(bool showVerifyForm)
+    {
+// Simplified: Just set the flag and update state
+        IsVerifyingLogin = showVerifyForm;
+        ErrorMessage = ""; // Clear messages on view switch
+        SuccessMessage = "";
+        InvokeAsync(StateHasChanged); // Ensure UI updates
+    }
+
+    private async Task HandleLogout()
+    {
+        Logger.LogInformation("Logout requested.");
+        ErrorMessage = "";
+        SuccessMessage = "Logging out...";
+        await InvokeAsync(StateHasChanged); // Show immediate feedback
+        try
+        {
+            await SpacetimeService.DisconnectAsync();
+
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Logout failed: {ex.Message}";
+            Logger.LogError(ex, "Error during logout");
+            SuccessMessage = ""; // Clear logging out message
+            await InvokeAsync(StateHasChanged); // Show error
+        }
+    }
+
+// --- IDisposable ---
+    public void Dispose()
+    {
+// Unsubscribe from events to prevent memory leaks
+        SpacetimeService.OnConnect -= HandleConnectionChange;
+        SpacetimeService.OnDisconnect -= HandleConnectionChange;
+        SpacetimeService.OnIdentityReceived -= HandleIdentityReceived;
+        SpacetimeService.OnProfileReceived -= HandleProfileReceived;
+        SpacetimeService.OnErrorReceived -= HandleSpacetimeError;
+        GC.SuppressFinalize(this);
+    }
+
+// --- Models ---
+    public class ProfileModel {
+        [Required]
+        [EmailAddress]
+        [StringLength(254)]
+        public string Email { get; set; } = "";
+    }
+}

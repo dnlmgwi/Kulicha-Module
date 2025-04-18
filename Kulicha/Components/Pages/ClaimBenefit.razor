@@ -1,0 +1,25 @@
+@page "/claim-benefit"
+@layout MainLayout
+@using Kulicha.Components.Layout
+@using Kulicha.Services
+@inject SpacetimeDbService SpacetimeService
+@inject NavigationManager NavigationManager
+@if (!SpacetimeService.IsAuthenticated)
+{
+    NavigationManager.NavigateTo("/");
+    return;
+}
+
+<h3>Claim a Benefit</h3>
+<button class="btn btn-primary" @onclick="HandleClaim">Claim</button>
+<p>Claim functionality not yet implemented.</p>
+
+
+@code {
+    private void HandleClaim(MouseEventArgs args)
+    {
+        // This will need to trigger the logout in the Auth component.
+        // For now, we'll simply navigate to the home page after "logging out"
+        NavigationManager.NavigateTo("/", forceLoad: false); // Or to a dedicated logout page if you have one
+    }
+}
