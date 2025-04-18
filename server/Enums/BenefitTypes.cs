@@ -1,4 +1,4 @@
-namespace StdbModule.Enums {
+namespace KulichaServerModule.Enums {
 /// <summary>
 /// Enum defining benefit types
 /// </summary>

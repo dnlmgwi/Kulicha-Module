@@ -2,7 +2,7 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Kulicha", "Kulicha\Kulicha.csproj", "{3F897891-2F7E-4015-806F-A79366BBE87E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StdbModule", "server\StdbModule.csproj", "{ED61B442-2541-4A6C-B38C-830E11D622FA}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KulichaServerModule", "server\KulichaServerModule.csproj", "{ED61B442-2541-4A6C-B38C-830E11D622FA}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{F8C9449E-0F76-49AA-95FB-EC3A10CFA856}"
 	ProjectSection(SolutionItems) = preProject

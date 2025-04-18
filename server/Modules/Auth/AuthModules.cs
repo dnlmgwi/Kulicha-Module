@@ -1,7 +1,7 @@
 using SpacetimeDB;
 using System.Text.RegularExpressions;
 
-namespace StdbModule.Modules.Auth {
+namespace KulichaServerModule.Modules.Auth {
 using Enums;
 public static partial class AuthModule {
     // ====================== Helper Constants & Methods ======================
