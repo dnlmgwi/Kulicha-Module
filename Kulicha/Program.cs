@@ -1,8 +1,5 @@
 using Kulicha.Components;
 using Kulicha.Services;
-using Blazorise;
-using Blazorise.Tailwind;
-using Blazorise.Icons.FontAwesome;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,13 +9,6 @@ builder.Logging.AddConsole();
 
 // Add services to the container.
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
-
-
-
-builder.Services
-    .AddBlazorise()
-    .AddTailwindProviders()
-    .AddFontAwesomeIcons();
 
 // Register the SpacetimeDB background service
 builder.Services.AddHostedService<SpacetimeDbService>();
