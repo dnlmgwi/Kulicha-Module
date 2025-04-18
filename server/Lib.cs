@@ -1,5 +1,4 @@
 using SpacetimeDB;
-using System.Text.RegularExpressions;
 
 namespace StdbModule {
 using Enums;
@@ -59,4 +58,63 @@ public partial class AuditLog {
     public string? Details; // Additional context
     public Timestamp Timestamp;
 }
+
+/// <summary>
+    /// Table for storing location information for benefits
+    /// </summary>
+    [Table]
+    public partial class BenefitLocation {
+        [AutoInc]
+        [PrimaryKey]
+        public long LocationId;
+
+        public string? Name;           // Location name or identifier
+        public string? City;           // City where the benefit is available
+        public string? Region;         // Region/province/state
+        public string? Address;        // Street address or detailed location
+        public double Latitude;        // Geographic coordinates - latitude
+        public double Longitude;       // Geographic coordinates - longitude
+        public double ServiceRadiusKm; // Radius of service coverage in kilometers
+        public bool IsActive;          // Whether this location is currently active
+        public Timestamp CreatedAt;    // When this location was created
+        public Timestamp? UpdatedAt;   // When this location was last updated
+    }
+
+    /// <summary>
+    /// Updated BenefitDefinition to reference BenefitLocation
+    /// </summary>
+    [Table]
+    public partial class BenefitDefinition {
+        [AutoInc]
+        [PrimaryKey]
+        public long BenefitId;
+        public string? Name;
+        public string? Description;
+        public BenefitType Type { get; set; }
+        public decimal Cost { get; set; }
+        public string? Provider;
+        public string? PolicyDetails;
+        public bool IsActive;
+
+        // Reference to location
+        public long LocationId;  // Foreign key to BenefitLocation
+
+        public Timestamp CreatedAt;
+        public Timestamp? UpdatedAt;
+    }
+
+    /// <summary>
+    /// Multi-location benefits mapping table
+    /// This allows a single benefit to be available at multiple locations
+    /// </summary>
+    [Table]
+    public partial class BenefitLocationMap {
+        [AutoInc]
+        [PrimaryKey]
+        public long MapId;
+        public long BenefitId;   // Reference to BenefitDefinition
+        public long LocationId;  // Reference to BenefitLocation
+        public Timestamp AddedAt;
+        public Timestamp? RemovedAt;  // For tracking when a location is no longer offering the benefit
+    }
 }
