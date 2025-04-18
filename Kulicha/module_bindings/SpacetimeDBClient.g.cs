@@ -22,6 +22,9 @@ namespace SpacetimeDB.Types
         {
             AddTable(AuditLog = new(conn));
             AddTable(AuthSession = new(conn));
+            AddTable(BenefitDefinition = new(conn));
+            AddTable(BenefitLocation = new(conn));
+            AddTable(BenefitLocationMap = new(conn));
             AddTable(PendingVerification = new(conn));
             AddTable(User = new(conn));
         }
@@ -434,12 +437,23 @@ namespace SpacetimeDB.Types
             {
                 "ClientConnected" => BSATNHelpers.Decode<Reducer.ClientConnected>(encodedArgs),
                 "ClientDisconnected" => BSATNHelpers.Decode<Reducer.ClientDisconnected>(encodedArgs),
+                "CreateBenefitDefinition" => BSATNHelpers.Decode<Reducer.CreateBenefitDefinition>(encodedArgs),
+                "CreateBenefitLocation" => BSATNHelpers.Decode<Reducer.CreateBenefitLocation>(encodedArgs),
+                "DeleteBenefitDefinition" => BSATNHelpers.Decode<Reducer.DeleteBenefitDefinition>(encodedArgs),
+                "DeleteBenefitLocation" => BSATNHelpers.Decode<Reducer.DeleteBenefitLocation>(encodedArgs),
                 "GetAuditLogs" => BSATNHelpers.Decode<Reducer.GetAuditLogs>(encodedArgs),
                 "GetBenefitsByLocation" => BSATNHelpers.Decode<Reducer.GetBenefitsByLocation>(encodedArgs),
                 "GetMyProfile" => BSATNHelpers.Decode<Reducer.GetMyProfile>(encodedArgs),
                 "ListUsersByRole" => BSATNHelpers.Decode<Reducer.ListUsersByRole>(encodedArgs),
+                "MapBenefitToLocation" => BSATNHelpers.Decode<Reducer.MapBenefitToLocation>(encodedArgs),
+                "QueryActiveBenefitsAtLocation" => BSATNHelpers.Decode<Reducer.QueryActiveBenefitsAtLocation>(encodedArgs),
+                "QueryActiveBenefitsByType" => BSATNHelpers.Decode<Reducer.QueryActiveBenefitsByType>(encodedArgs),
+                "QueryActiveBenefitsNearPoint" => BSATNHelpers.Decode<Reducer.QueryActiveBenefitsNearPoint>(encodedArgs),
                 "RegisterUser" => BSATNHelpers.Decode<Reducer.RegisterUser>(encodedArgs),
                 "RequestLoginCode" => BSATNHelpers.Decode<Reducer.RequestLoginCode>(encodedArgs),
+                "UnmapBenefitFromLocation" => BSATNHelpers.Decode<Reducer.UnmapBenefitFromLocation>(encodedArgs),
+                "UpdateBenefitDefinition" => BSATNHelpers.Decode<Reducer.UpdateBenefitDefinition>(encodedArgs),
+                "UpdateBenefitLocation" => BSATNHelpers.Decode<Reducer.UpdateBenefitLocation>(encodedArgs),
                 "UpdateProfile" => BSATNHelpers.Decode<Reducer.UpdateProfile>(encodedArgs),
                 "VerifyAccount" => BSATNHelpers.Decode<Reducer.VerifyAccount>(encodedArgs),
                 "VerifyLogin" => BSATNHelpers.Decode<Reducer.VerifyLogin>(encodedArgs),
@@ -466,12 +480,23 @@ namespace SpacetimeDB.Types
             {
                 Reducer.ClientConnected args => Reducers.InvokeClientConnected(eventContext, args),
                 Reducer.ClientDisconnected args => Reducers.InvokeClientDisconnected(eventContext, args),
+                Reducer.CreateBenefitDefinition args => Reducers.InvokeCreateBenefitDefinition(eventContext, args),
+                Reducer.CreateBenefitLocation args => Reducers.InvokeCreateBenefitLocation(eventContext, args),
+                Reducer.DeleteBenefitDefinition args => Reducers.InvokeDeleteBenefitDefinition(eventContext, args),
+                Reducer.DeleteBenefitLocation args => Reducers.InvokeDeleteBenefitLocation(eventContext, args),
                 Reducer.GetAuditLogs args => Reducers.InvokeGetAuditLogs(eventContext, args),
                 Reducer.GetBenefitsByLocation args => Reducers.InvokeGetBenefitsByLocation(eventContext, args),
                 Reducer.GetMyProfile args => Reducers.InvokeGetMyProfile(eventContext, args),
                 Reducer.ListUsersByRole args => Reducers.InvokeListUsersByRole(eventContext, args),
+                Reducer.MapBenefitToLocation args => Reducers.InvokeMapBenefitToLocation(eventContext, args),
+                Reducer.QueryActiveBenefitsAtLocation args => Reducers.InvokeQueryActiveBenefitsAtLocation(eventContext, args),
+                Reducer.QueryActiveBenefitsByType args => Reducers.InvokeQueryActiveBenefitsByType(eventContext, args),
+                Reducer.QueryActiveBenefitsNearPoint args => Reducers.InvokeQueryActiveBenefitsNearPoint(eventContext, args),
                 Reducer.RegisterUser args => Reducers.InvokeRegisterUser(eventContext, args),
                 Reducer.RequestLoginCode args => Reducers.InvokeRequestLoginCode(eventContext, args),
+                Reducer.UnmapBenefitFromLocation args => Reducers.InvokeUnmapBenefitFromLocation(eventContext, args),
+                Reducer.UpdateBenefitDefinition args => Reducers.InvokeUpdateBenefitDefinition(eventContext, args),
+                Reducer.UpdateBenefitLocation args => Reducers.InvokeUpdateBenefitLocation(eventContext, args),
                 Reducer.UpdateProfile args => Reducers.InvokeUpdateProfile(eventContext, args),
                 Reducer.VerifyAccount args => Reducers.InvokeVerifyAccount(eventContext, args),
                 Reducer.VerifyLogin args => Reducers.InvokeVerifyLogin(eventContext, args),
