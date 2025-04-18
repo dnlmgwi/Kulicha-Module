@@ -32,6 +32,10 @@ Start Server
 ```bash
 spacetime start
 ```
+View Database
+```bash
+spacetime sql --interactive kulicha
+```
 
 Kill Process
 
