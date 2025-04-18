@@ -1,16 +1,16 @@
-razor
 @namespace Kulicha.Components
-@using Kulicha.Components.RealTimeMap
+@using Kulicha.Components.Map
+@using LeafletForBlazor
 
 <div style="height: @height; width: @width;">
 </div>
 
 @code {
     [Parameter]
-    public LoadParameters Parameters { get; set; }
+    public Map.LoadParameters Parameters { get; set; }
 
     [Parameter]
-    public MapOptions Options { get; set; }
+    public Map.MapOptions Options { get; set; }
 
     [Parameter]
     public string height { get; set; }
