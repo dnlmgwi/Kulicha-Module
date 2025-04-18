@@ -1,10 +1,8 @@
 using SpacetimeDB;
 using System.Text.RegularExpressions;
 
-namespace StdbModule.Modules {
+namespace StdbModule.Modules.Auth {
 using Enums;
-// ====================== Auth Module Implementation ======================
-
 public static partial class AuthModule {
     // ====================== Helper Constants & Methods ======================
 
@@ -169,7 +167,7 @@ public static partial class AuthModule {
         var user = new User
         {
             Identity = identity,
-            Username = pendingVerification!.Username,
+            Username = pendingVerification.Username,
             Email = pendingVerification.Email,
             Role = pendingVerification.Role,
             IsEmailVerified = true,
