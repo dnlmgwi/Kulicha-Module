@@ -264,14 +264,15 @@ public static partial class AuthModule {
         {
             LogInfo(ctx, identity, "LoginFailed", "No pending verification found");
             Log.Info("No pending login verification found. Please request a new code.");
+            throw new Exception("No pending login verification found. Please request a new code.");
         }
-
 
         if (pendingReg.ExpiresAt < ctx.Timestamp)
         {
             ctx.Db.PendingVerification.Delete(pendingReg);
             LogInfo(ctx, identity, "LoginFailed", "Verification code expired");
             Log.Info("Verification code has expired. Please request a new code.");
+            throw new Exception("Verification code has expired. Please request a new code.");
         }
 
         // Verify the code
@@ -279,6 +280,7 @@ public static partial class AuthModule {
         {
             LogInfo(ctx, identity, "LoginAttemptFailed", "Invalid verification code");
             Log.Info("Invalid verification code. Please try again.");
+            throw new Exception("Invalid verification code. Please try again.");
         }
 
         // Find the user associated with this email
@@ -289,11 +291,11 @@ public static partial class AuthModule {
             ctx.Db.PendingVerification.Delete(pendingReg);
             LogInfo(ctx, identity, "LoginFailed", "User no longer exists");
             Log.Info("Account not found. Please contact support.");
+            throw new Exception("Account not found. Please contact support.");
         }
 
         // If the user's identity doesn't match the current sender,
         // update the user record with the new identity
-
         if (user.Identity != identity)
         {
             user.Identity = identity;
