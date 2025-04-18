@@ -17,7 +17,7 @@ public static partial class BenefitModule {
         if (!requiredRoles.Contains(user.Role))
         {
             Log.Warn($"BenefitModule: User {user.Username} ({user.Role}) attempted action requiring roles: {string.Join(", ", requiredRoles)}.");
-            LogBenefitAction(ctx, user!.Identity.ToString(), "Privileged access", $"User {user.Username} ({user.Role}) attempted action requiring roles: {string.Join(", ", requiredRoles)}.");
+            LogBenefitAction(ctx, user.Identity.ToString(), "Privileged access", $"User {user.Username} ({user.Role}) attempted action requiring roles: {string.Join(", ", requiredRoles)}.");
             return false;
         }
         return true;
