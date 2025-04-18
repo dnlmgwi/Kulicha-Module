@@ -4,7 +4,6 @@
 @using Microsoft.Extensions.Logging
 @using SpacetimeDB
 @using SpacetimeDB.Types
-@using Blazorise.Components
 @inject SpacetimeDbService SpacetimeService
 @inject ILogger<Auth> Logger
 @inject NavigationManager NavigationManager
@@ -66,17 +65,12 @@
                 <div>
                     <label for="role" class="block text-sm font-medium text-gray-700">Role</label>
                     <div class="mt-1">
-                        <SelectList
-                            id="role"
-                            @bind-SelectedValue="registerModel.Role"
-                            TItem="RegisterModel"
-                            TValue="int"
-                            DefaultItemText="Choose your country"
-                            class="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
-                            <option value="2">Beneficiary</option>
+                        <InputSelect id="role" @bind-Value="registerModel.Role"
+                                      class="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                        <option value="2">Beneficiary</option>
                             <option value="1">Benefactor</option>
                             <option value="0">Auditor</option>
-                        </SelectList>
+                        </InputSelect>
                     </div>
                     <ValidationMessage For="@(() => registerModel.Role)" class="text-red-500 text-sm"/>
                 </div>
