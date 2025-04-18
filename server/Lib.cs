@@ -1,6 +1,6 @@
 using SpacetimeDB;
 
-namespace KulichaServerModule {
+namespace Server {
 using Enums;
 // ====================== Database Table Definitions ======================
 

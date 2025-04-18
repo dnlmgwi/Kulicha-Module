@@ -1,4 +1,4 @@
-namespace KulichaServerModule.Modules.Benefits {
+namespace Server.Modules.Benefits {
 using Enums;
 using SpacetimeDB;
 

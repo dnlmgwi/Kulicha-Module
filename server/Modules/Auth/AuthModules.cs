@@ -174,7 +174,7 @@ public static partial class AuthModule {
         Identity identity = ctx.Sender;
 
         // 1. Find Pending Verification
-        var pending = ctx.Db.PendingVerification.Identity.Find(identity);
+        var pending = ctx.Db.PendingVerification.Identity.Find(identity); // Use Pk
 
         if (pending == null)
         {
@@ -196,20 +196,25 @@ public static partial class AuthModule {
         }
 
         // 4. Verification successful - Determine action: Register or Login
-        User? user = ctx.Db.User.Identity.Find(identity);
+        User? user = ctx.Db.User.Identity.Find(identity); // Use Pk
 
         if (user == null)
         {
             // --- COMPLETE REGISTRATION ---
-            // Double-check if email/username got taken *after* request but *before* verify (race condition)
-            if (string.IsNullOrEmpty(pending.Username))
+
+            // Explicitly check for required registration fields from PendingVerification
+            // These should have been validated and stored by RequestVerification
+            if (string.IsNullOrEmpty(pending.Username) || string.IsNullOrEmpty(pending.Email))
             {
-                // Should not happen if RequestVerification logic is correct
+                // This indicates an inconsistent state, likely an issue in RequestVerification
                 ctx.Db.PendingVerification.Delete(pending); // Clean up inconsistent state
-                throw new Exception("Internal error: Pending verification data incomplete for registration.");
+                Log.Error($"Auth Error: Pending verification data incomplete for registration. Identity: {identity}");
+                throw new Exception("Internal error during registration. Please try again or contact support.");
             }
 
-            if (ctx.Db.User.Iter().Any(u => u.Email == pending.Email) )
+            // Double-check if email/username got taken *after* request but *before* verify (race condition)
+            // Use the non-null values checked above
+            if (ctx.Db.User.Iter().Any(u => u.Email == pending.Email))
             {
                 ctx.Db.PendingVerification.Delete(pending);
                 throw new Exception($"Email '{pending.Email}' was registered by someone else. Please try registering again.");
@@ -221,14 +226,13 @@ public static partial class AuthModule {
                 throw new Exception($"Username '{pending.Username}' was taken. Please try registering again with a different username.");
             }
 
-
             user = new User
             {
                 Identity = identity,
-                Username = pending.Username, // Use stored username
-                Email = pending.Email, // Use stored email
-                Role = pending.Role, // Use stored role
-                IsEmailVerified = true, // Email is verified by this process
+                Username = pending.Username,
+                Email = pending.Email,
+                Role = pending.Role,
+                IsEmailVerified = true,
                 RegisteredAt = ctx.Timestamp
             };
             ctx.Db.User.Insert(user);
@@ -246,24 +250,27 @@ public static partial class AuthModule {
         else
         {
             // --- COMPLETE LOGIN ---
-            // Sanity check: Ensure the email matches the logged-in user's email
-            if (user.Email != pending.Email)
+
+            // Sanity check: Ensure the email in the pending record matches the logged-in user's email
+            // Also check if pending.Email is null, although it shouldn't be for a login verification
+            if (string.IsNullOrEmpty(pending.Email) || user.Email != pending.Email)
             {
-                // This implies the user somehow requested verification for one email
+                // This implies the user somehow requested verification for one email (or no email stored?)
                 // while their identity is already linked to a different verified email.
                 ctx.Db.PendingVerification.Delete(pending); // Clean up
+                Log.Warn($"Auth Mismatch: Verify attempted for email '{pending.Email ?? "NULL"}' but user '{user.Username}' has email '{user.Email}'. Identity: {identity}");
                 throw new Exception("Verification email does not match the email associated with your account.");
             }
 
             LogAuthAction(ctx, "UserLogin", $"User {user.Username} ({user.Email}) logged in.");
 
             // Upsert AuthSession
-            var session = ctx.Db.AuthSession.Identity.Find(identity);
+            var session = ctx.Db.AuthSession.Identity.Find(identity); // Use Pk
             if (session != null)
             {
                 session.LastActiveTime = ctx.Timestamp;
                 session.ActiveDeviceId = deviceId ?? "unknown";
-                ctx.Db.AuthSession.Identity.Update(session);
+                ctx.Db.AuthSession.Identity.Update(session); // Use Update with object
                 LogAuthAction(ctx, "SessionUpdated", $"Session updated for {user.Username}. Device: {deviceId ?? "unknown"}");
             }
             else
@@ -284,7 +291,6 @@ public static partial class AuthModule {
         // Success - Client state will update via subscriptions to User and AuthSession tables.
         Log.Info($"Auth: Verification successful for Identity {identity}.");
     }
-
 
     // ====================== User Management & Other Reducers (Minor Updates) ======================
 

@@ -1,6 +1,6 @@
 using SpacetimeDB;
 
-namespace KulichaServerModule.Modules.Benefits {
+namespace Server.Modules.Benefits {
 using Enums;
 public static partial class BenefitModule {
     private const double EarthRadiusKm = 6371.0;
