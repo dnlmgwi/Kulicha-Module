@@ -16,7 +16,6 @@ public static partial class BenefitModule {
         {
             Log.Info("Database appears empty. Seeding initial data...");
 
-            // === 1. Create Benefit Locations in Malawi ===
             var locationLilongwe = ctx.Db.BenefitLocation.Insert(new BenefitLocation
             {
                 Name = "Lilongwe Youth Drop-in Center",
@@ -30,7 +29,7 @@ public static partial class BenefitModule {
                 CreatedAt = new Timestamp() // Use current SpacetimeDB time
                 // UpdatedAt is nullable, defaults to null
             });
-            // The Insert method returns the inserted object, including the auto-generated LocationId
+
             Log.Info($"Created Location ID: {locationLilongwe.LocationId} - {locationLilongwe.Name}");
 
 
@@ -46,8 +45,8 @@ public static partial class BenefitModule {
                 IsActive = true,
                 CreatedAt = new Timestamp()
             });
-            Log.Info($"Created Location ID: {locationBlantyre.LocationId} - {locationBlantyre.Name}");
 
+            Log.Info($"Created Location ID: {locationBlantyre.LocationId} - {locationBlantyre.Name}");
 
             var locationMzuzu = ctx.Db.BenefitLocation.Insert(new BenefitLocation
             {
@@ -61,15 +60,8 @@ public static partial class BenefitModule {
                 IsActive = true,
                 CreatedAt = new Timestamp()
             });
+
             Log.Info($"Created Location ID: {locationMzuzu.LocationId} - {locationMzuzu.Name}");
-
-
-            // === 2. Create Benefit Definitions ===
-
-            // Note: BenefitDefinition has a non-nullable LocationId. This seems slightly redundant
-            // given the BenefitLocationMap table. We'll assign the ID of the *first* location
-            // it's mapped to below, just to satisfy the schema requirement.
-            // A better schema might remove this FK or make it nullable if the map is used.
 
             var benefitShelter = ctx.Db.BenefitDefinition.Insert(new BenefitDefinition
             {
@@ -83,8 +75,8 @@ public static partial class BenefitModule {
                 LocationId = locationLilongwe.LocationId, // Assigning first mapped location ID
                 CreatedAt = new Timestamp()
             });
-            Log.Info($"Created Benefit ID: {benefitShelter.BenefitId} - {benefitShelter.Name}");
 
+            Log.Info($"Created Benefit ID: {benefitShelter.BenefitId} - {benefitShelter.Name}");
 
             var benefitFood = ctx.Db.BenefitDefinition.Insert(new BenefitDefinition
             {
@@ -98,8 +90,8 @@ public static partial class BenefitModule {
                 LocationId = locationBlantyre.LocationId, // Assigning first mapped location ID
                 CreatedAt = new Timestamp()
             });
-            Log.Info($"Created Benefit ID: {benefitFood.BenefitId} - {benefitFood.Name}");
 
+            Log.Info($"Created Benefit ID: {benefitFood.BenefitId} - {benefitFood.Name}");
 
             var benefitHealth = ctx.Db.BenefitDefinition.Insert(new BenefitDefinition
             {
@@ -113,8 +105,8 @@ public static partial class BenefitModule {
                 LocationId = locationMzuzu.LocationId, // Assigning first mapped location ID
                 CreatedAt = new Timestamp()
             });
-            Log.Info($"Created Benefit ID: {benefitHealth.BenefitId} - {benefitHealth.Name}");
 
+            Log.Info($"Created Benefit ID: {benefitHealth.BenefitId} - {benefitHealth.Name}");
 
             var benefitCounseling = ctx.Db.BenefitDefinition.Insert(new BenefitDefinition
             {
@@ -128,12 +120,9 @@ public static partial class BenefitModule {
                 LocationId = locationLilongwe.LocationId, // Assigning first mapped location ID
                 CreatedAt = new Timestamp()
             });
+
             Log.Info($"Created Benefit ID: {benefitCounseling.BenefitId} - {benefitCounseling.Name}");
 
-
-            // === 3. Map Benefits to Locations using BenefitLocationMap ===
-
-            // Shelter is only at Lilongwe
             ctx.Db.BenefitLocationMap.Insert(new BenefitLocationMap
             {
                 BenefitId = benefitShelter.BenefitId,
@@ -141,7 +130,6 @@ public static partial class BenefitModule {
                 AddedAt = new Timestamp()
             });
 
-            // Food is only at Blantyre (as per this sample data)
             ctx.Db.BenefitLocationMap.Insert(new BenefitLocationMap
             {
                 BenefitId = benefitFood.BenefitId,
@@ -149,7 +137,6 @@ public static partial class BenefitModule {
                 AddedAt = new Timestamp()
             });
 
-            // Health is only via Mzuzu Mobile unit (as per this sample data)
             ctx.Db.BenefitLocationMap.Insert(new BenefitLocationMap
             {
                 BenefitId = benefitHealth.BenefitId,
@@ -157,17 +144,17 @@ public static partial class BenefitModule {
                 AddedAt = new Timestamp()
             });
 
-            // Counseling is available at Lilongwe AND Blantyre
             ctx.Db.BenefitLocationMap.Insert(new BenefitLocationMap
             {
                 BenefitId = benefitCounseling.BenefitId,
                 LocationId = locationLilongwe.LocationId,
                 AddedAt = new Timestamp()
             });
+
             ctx.Db.BenefitLocationMap.Insert(new BenefitLocationMap
             {
                 BenefitId = benefitCounseling.BenefitId,
-                LocationId = locationBlantyre.LocationId, // Also available here
+                LocationId = locationBlantyre.LocationId,
                 AddedAt = new Timestamp()
             });
 
