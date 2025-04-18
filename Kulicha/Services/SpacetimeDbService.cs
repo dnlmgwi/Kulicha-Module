@@ -535,7 +535,7 @@ public class SpacetimeDbService : IHostedService, IDisposable {
     {
         _localIdentity = identity;
         _isConnected = true;
-        ;
+
         AuthToken.SaveToken(authToken); // Save the token (potentially new if first connect)
         _logger.LogInformation("Connected to SpacetimeDB with Identity: {Identity}", identity);
 
