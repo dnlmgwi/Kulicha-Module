@@ -35,7 +35,7 @@ public static class BenefitSeeder {
     private static T GetRandomItem<T>(IReadOnlyList<T> items) => (items.Any() ? items[Rng.Next(items.Count)] : default)!;
     private static bool GetRandomBool(double probabilityOfTrue) => Rng.NextDouble() < probabilityOfTrue;
     private static double GetRandomCoordinateOffset(double maxOffset = 0.05) => (Rng.NextDouble() - 0.5) * 2 * maxOffset;
-    private static decimal GetRandomCost() => GetRandomBool((double)ProbBenefitIsFree) ? 0.00m : Rng.Next(5, 200) * 10; // Random cost, e.g., 50 to 2000 MWK, or 0
+    private static double GetRandomCost() => GetRandomBool((double)ProbBenefitIsFree) ? 0.00 : Rng.Next(5, 200) * 10; // Random cost, e.g., 50 to 2000 MWK, or 0
     private static string GeneratePolicy() => $"{(GetRandomBool(0.6) ? "Appointment needed. " : "")}Hours: {Rng.Next(8, 11)}:00-{(GetRandomBool(0.5) ? Rng.Next(12, 14) : Rng.Next(15, 17))}:00. {(GetRandomBool(0.4) ? "Bring ID." : "Call first.")}";
 
     public static void SeedInitialData(ReducerContext ctx)

@@ -11,8 +11,10 @@ using Enums;
 public partial class User {
     [PrimaryKey]
     public Identity Identity;
-    public string? Username;
-    public string? Email;
+    [Unique]
+    public string Username ="";
+    [Unique]
+    public string Email ="";
     public UserRole Role { get; init; }
     public bool IsEmailVerified;
     public Timestamp RegisteredAt;
@@ -52,7 +54,7 @@ public partial class AuthSession {
 public partial class AuditLog {
     [AutoInc]
     [PrimaryKey]
-    public long Field;
+    public long LogId;
     public Identity Identity; // User who performed the action
     public string? Action; // Type of action performed
     public string? Details; // Additional context
@@ -67,8 +69,8 @@ public partial class AuditLog {
         [AutoInc]
         [PrimaryKey]
         public long LocationId;
-
-        public string? Name;           // Location name or identifier
+        [Unique]
+        public string Name = "";           // Location name or identifier
         public string? City;           // City where the benefit is available
         public string? Region;         // Region/province/state
         public string? Address;        // Street address or detailed location
@@ -88,10 +90,11 @@ public partial class AuditLog {
         [AutoInc]
         [PrimaryKey]
         public long BenefitId;
-        public string? Name;
+        [Unique]
+        public string Name = "";
         public string? Description;
         public BenefitType Type { get; set; }
-        public decimal Cost { get; set; }
+        public double Cost = 0.0;
         public string? Provider;
         public string? PolicyDetails;
         public bool IsActive;

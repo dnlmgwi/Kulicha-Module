@@ -7,475 +7,437 @@ public static partial class AuthModule {
     // ====================== Helper Constants & Methods ======================
 
     private const string EmailPattern = @"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$";
-    private const string UsernamePattern = @"^[a-zA-Z0-9_-]{3,20}$";
+    private const string UsernamePattern = @"^[a-zA-Z0-9_-]{3,20}$"; // Keep for registration validation
     private static readonly Random Random = new Random();
-    // private static readonly EmailService EmailService = new EmailService();
+    private static readonly TimeDuration VerificationExpiry = new TimeDuration { Microseconds = 86400000000 / 4 }; // 6 hours expiry
 
-    /// <summary>
-    /// Validates an email format
-    /// </summary>
-    private static bool IsValidEmail(string email)
-    {
-        return !string.IsNullOrWhiteSpace(email) && Regex.IsMatch(email, EmailPattern);
-    }
+    private static bool IsValidEmail(string email) => !string.IsNullOrWhiteSpace(email) && Regex.IsMatch(email, EmailPattern);
+    private static bool IsValidUsername(string username) => !string.IsNullOrWhiteSpace(username) && Regex.IsMatch(username, UsernamePattern);
 
-    /// <summary>
-    /// Validates a username format
-    /// </summary>
-    private static bool IsValidUsername(string username)
-    {
-        return !string.IsNullOrWhiteSpace(username) && Regex.IsMatch(username, UsernamePattern);
-    }
-
-    /// <summary>
-    /// Generates a random verification code
-    /// </summary>
     private static string GenerateVerificationCode()
     {
-        const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-        return new string(Enumerable.Repeat(chars, 6)
-            .Select(s => s[Random.Next(s.Length)]).ToArray());
+        const string chars = "0123456789"; // Numeric codes are often easier
+        return new string(Enumerable.Repeat(chars, 6).Select(s => s[Random.Next(s.Length)]).ToArray());
     }
 
-    // ====================== Lifecycle Reducers ======================
+    // ====================== Utility: Logging ======================
 
-    /// <summary>
-    /// Initialize the database with proper hex validation
-    /// </summary>
-    // [Reducer(ReducerKind.Init)]
-    // public static void Init(ReducerContext ctx)
-    // {
-    //     Log.Info($"Initializing...");
-    //     LogInfo(ctx, ctx.Identity, "Module initialized", "Auth module initialized successfully");
-    // }
+    private static void LogAuthAction(ReducerContext ctx, string action, string details, Identity? targetIdentity = null)
+    {
+        var identityToLog = targetIdentity ?? ctx.Sender; // Log against target or sender
+        Log.Info($"Auth Action by {ctx.Sender} (Target: {identityToLog}): {action} - {details}");
+        ctx.Db.AuditLog.Insert(new AuditLog
+        {
+            Identity = identityToLog,
+            Action = action,
+            Details = details,
+            Timestamp = ctx.Timestamp
+        });
+    }
 
-    /// <summary>
-    /// Handle client connections
-    /// </summary>
+    // ====================== Lifecycle Reducers (Unchanged) ======================
+
     [Reducer(ReducerKind.ClientConnected)]
     public static void ClientConnected(ReducerContext ctx)
     {
-        Identity identity = ctx.Sender;
-
-        // Assuming the client now provides the auth token as part of the connection metadata.
-        // In a real app, you'd have a more robust way to pass this, possibly through a handshake.
-        // string? authToken = ctx.Args?.Get("authToken")?.ToString();
-
-        var existingUser = ctx.Db.User.Identity.Find(identity);
-
-        if (existingUser == null)
+        var user = ctx.Db.User.Identity.Find(ctx.Sender); // Use Pk for Identity lookup
+        if (user != null)
         {
-            Log.Error($"Unauthorized connection attempt.");
-            // In a real app, you might want to disconnect the client here.
+            LogAuthAction(ctx, "UserConnected", $"User {user.Username} connected.");
+            // Optionally update LastActiveTime in AuthSession here if desired
         }
         else
         {
-            LogInfo(ctx, identity, "UserConnected", $"User {existingUser.Username} connected");
+            Log.Info($"Auth: New client connected with Identity {ctx.Sender}. No user record found yet.");
         }
     }
 
-    /// <summary>
-    /// Handle client disconnections
-    /// </summary>
     [Reducer(ReducerKind.ClientDisconnected)]
     public static void ClientDisconnected(ReducerContext ctx)
     {
-        Identity identity = ctx.Sender;
-
-        var existingUser = ctx.Db.User.Identity.Find(identity);
-
-        if (existingUser != null)
+        var user = ctx.Db.User.Identity.Find(ctx.Sender); // Use Pk for Identity lookup
+        if (user != null)
         {
-            LogInfo(ctx, identity, "UserDisconnected", $"User {existingUser.Username} disconnected");
+            LogAuthAction(ctx, "UserDisconnected", $"User {user.Username} disconnected.");
+            // Optionally update LastActiveTime or clear session info here
+        }
+        else
+        {
+            Log.Info($"Auth: Client with Identity {ctx.Sender} disconnected. No user record found.");
         }
     }
 
-    // ====================== Registration Reducers ======================
+    // ====================== Simplified Auth Flow Reducers ======================
 
     /// <summary>
-    /// Register a new user
+    /// Initiates registration or login by sending a verification code to the user's email.
+    /// Determines intent (register vs login) based on email existence.
     /// </summary>
     [Reducer]
-    public static void RegisterUser(ReducerContext ctx, string username, string email, int roleInt)
+    public static void RequestVerification(ReducerContext ctx, string email, string? username = null, int? roleInt = null)
     {
         Identity identity = ctx.Sender;
-
-        // Validate input
-        if (!IsValidUsername(username))
-            Log.Error("Invalid username. Username must be 3-20 characters and contain only letters, numbers, underscore or hyphen.");
+        email = email.ToLowerInvariant().Trim(); // Normalize email
 
         if (!IsValidEmail(email))
-            Log.Error("Invalid email format.");
+        {
+            throw new Exception("Invalid email format provided.");
+        }
 
-        if (!Enum.IsDefined(typeof(UserRole), roleInt))
-            Log.Error("Invalid role specified.");
+        // Determine intent and validate accordingly
+        bool isRegistrationAttempt = username != null || roleInt != null;
+        User? existingUserByEmail = ctx.Db.User.Iter().FirstOrDefault(u => u.Email == email);
+        User? existingUserById = ctx.Db.User.Identity.Find(identity); // Check if current identity already has a user
 
-        var role = (UserRole)roleInt;
+        // Prevent logged-in users from initiating verification for a *different* email/account
+        if (existingUserById != null && existingUserById.Email != email)
+        {
+            throw new Exception("Cannot request verification for a different email while logged in.");
+        }
 
-        // Create a verification code
+
+        string? validatedUsername = null;
+
+        var validatedRole = (UserRole)roleInt!;
+
+        if (isRegistrationAttempt)
+        {
+            // --- REGISTRATION VALIDATION ---
+            if (existingUserByEmail != null)
+            {
+                throw new Exception($"Email '{email}' is already registered. Please login instead.");
+            }
+            if (string.IsNullOrWhiteSpace(username) || roleInt == null)
+            {
+                throw new Exception("Username and Role are required for registration.");
+            }
+            if (!IsValidUsername(username))
+            {
+                throw new Exception("Invalid username format (3-20 chars, letters, numbers, _, -).");
+            }
+            if (ctx.Db.User.Iter().Any(u => u.Username == username))
+            {
+                throw new Exception($"Username '{username}' is already taken.");
+            }
+            if (!Enum.IsDefined(typeof(UserRole), roleInt.Value))
+            {
+                throw new Exception("Invalid user role specified.");
+            }
+            validatedUsername = username;
+            validatedRole = (UserRole)roleInt;
+            LogAuthAction(ctx, "RegistrationVerificationRequested", $"Attempting registration for {email} / {username}");
+        }
+        else
+        {
+            // --- LOGIN VALIDATION ---
+            if (existingUserByEmail == null)
+            {
+                throw new Exception($"No account found for email '{email}'. Please register first.");
+            }
+            LogAuthAction(ctx, "LoginVerificationRequested", $"Attempting login for {email}");
+        }
+
+        // --- Generate and Store Code ---
         string verificationCode = GenerateVerificationCode();
+        Timestamp expiresAt = ctx.Timestamp + VerificationExpiry;
 
-        // Create a TimeDuration object for one day
-        var oneDay = new TimeDuration { Microseconds = 86400000000 };
-
-        // Store pending registration
-        var pendingReg = new PendingVerification
-        {
-            Identity = identity,
-            Username = username,
-            Email = email,
-            Role = role,
-            VerificationCode = verificationCode,
-            ExpiresAt = ctx.Timestamp + oneDay // Expires in 24 hours
-        };
-
-        ctx.Db.PendingVerification.Insert(pendingReg);
-
-        LogInfo(ctx, identity, "UserRegistrationRequested",
-        $"User registration requested with username {username}, email {email}, role {role}");
-
-        // In a real app, you would send an email with the verification code
-        // For now, we just return it to the user
-        Log.Info($"Registration successful! Verification code: {verificationCode}");
-        // EmailService.SendVerificationEmailAsync(email, verificationCode);
-    }
-
-    /// <summary>
-    /// Verify email with verification code to complete registration
-    /// </summary>
-    [Reducer]
-    public static void VerifyAccount(ReducerContext ctx, string verificationCode)
-    {
-        Identity identity = ctx.Sender;
-
-        // Get pending registration
-        var pendingVerification = ctx.Db.PendingVerification.Identity.Find(identity) ?? throw new Exception("No pending Verification found.");
-
-        if (pendingVerification?.ExpiresAt < ctx.Timestamp)
-        {
-            // Check if code has expired
-            ctx.Db.PendingVerification.Delete(pendingVerification);
-            throw new Exception("Verification code has expired. Please register again."); //TODO Notify User
-        }
-
-        if (pendingVerification?.VerificationCode != verificationCode)
-        { // Verify the code
-            throw new Exception("Invalid verification code."); //TODO Notify User
-        }
-
-        // Create the user
-        var user = new User
-        {
-            Identity = identity,
-            Username = pendingVerification.Username,
-            Email = pendingVerification.Email,
-            Role = pendingVerification.Role,
-            IsEmailVerified = true,
-            RegisteredAt = ctx.Timestamp
-        };
-
-        ctx.Db.User.Insert(user);
-
-        // Create auth session
-        var authSession = new AuthSession
-        {
-            Identity = identity,
-            LastActiveTime = ctx.Timestamp,
-            ActiveDeviceId = "web" // In a real app, you'd use a device ID
-        };
-
-        ctx.Db.AuthSession.Insert(authSession);
-
-        // Remove pending registration
-        ctx.Db.PendingVerification.Delete(pendingVerification);
-
-        LogInfo(ctx, identity, "UserRegistrationCompleted",
-        $"User registration completed for {user.Username} with role {user.Role}");
-
-        Log.Info($"Email verification successful! You are now registered as a {user.Role}."); //TODO Notify User
-    }
-
-    /// <summary>
-    /// Request a login verification code for an existing user
-    /// </summary>
-    [Reducer]
-    public static void RequestLoginCode(ReducerContext ctx, string email)
-    {
-        Identity identity = ctx.Sender;
-
-        // Validate email format
-        if (!IsValidEmail(email))
-        {
-            Log.Error("Invalid email format.");
-            throw new Exception("Invalid email format.");
-        }
-
-        // Check if user exists with this email
-        var user = ctx.Db.User.Identity.Find(identity) ?? throw new Exception("No account found with this email.");
-
-        Log.Info($"Found User! {user}");
-
-        // Generate a verification code
-        string verificationCode = GenerateVerificationCode();
-
-        // Create a TimeDuration object for one day
-        var oneDay = new TimeDuration { Microseconds = 86400000000 };
-
-        // Store pending registration
-        var pendingVerification = new PendingVerification
-        {
-            Identity = identity,
-            Email = email,
-            VerificationCode = verificationCode,
-            ExpiresAt = ctx.Timestamp + oneDay // Expires in 24 hours (microseconds)
-        };
-
-        // Remove any existing pending registration for this identity
+        // Upsert PendingVerification: Delete existing for this identity, then insert new.
         var existingPending = ctx.Db.PendingVerification.Identity.Find(identity);
-
         if (existingPending != null)
         {
             ctx.Db.PendingVerification.Delete(existingPending);
         }
 
-        ctx.Db.PendingVerification.Insert(pendingVerification);
 
-        LogInfo(ctx, identity, "LoginVerificationRequested",
-        $"Login verification requested for {email}");
+        ctx.Db.PendingVerification.Insert(new PendingVerification
+        {
+            Identity = identity,
+            Email = email, // Store normalized email
+            Username = validatedUsername, // Null for login attempts
+            Role = validatedRole, // Null for login attempts
+            VerificationCode = verificationCode,
+            ExpiresAt = expiresAt
+        });
 
-        // TODO: email with the verification code
-        Log.Info($"Verification code sent! {verificationCode}");
+        // --- Send Email (Conceptual) ---
+        // EmailService.SendVerificationEmailAsync(email, verificationCode);
+        Log.Info($"Auth: Verification code generated for {email}. Code: {verificationCode} (Expires: {expiresAt})"); // Log code for testing
+        // Consider returning a success message, but not the code itself.
     }
 
     /// <summary>
-    /// Verify email with verification code to login
+    /// Verifies the code sent to the user's email to complete registration or login.
     /// </summary>
     [Reducer]
-    public static void VerifyLogin(ReducerContext ctx, string verificationCode, string deviceId = "web")
+    public static void Verify(ReducerContext ctx, string verificationCode, string? deviceId)
     {
         Identity identity = ctx.Sender;
 
-        // Get pending registration
-        var pendingReg = ctx.Db.PendingVerification.Identity.Find(identity);
+        // 1. Find Pending Verification
+        var pending = ctx.Db.PendingVerification.Identity.Find(identity);
 
-        if (pendingReg == null)
+        if (pending == null)
         {
-            LogInfo(ctx, identity, "LoginFailed", "No pending verification found");
-            Log.Info("No pending login verification found. Please request a new code.");
-            throw new Exception("No pending login verification found. Please request a new code.");
+            throw new Exception("No pending verification found. Please request a code first.");
         }
 
-        if (pendingReg.ExpiresAt < ctx.Timestamp)
+        // 2. Check Expiry
+        if (pending.ExpiresAt < ctx.Timestamp)
         {
-            ctx.Db.PendingVerification.Delete(pendingReg);
-            LogInfo(ctx, identity, "LoginFailed", "Verification code expired");
-            Log.Info("Verification code has expired. Please request a new code.");
-            throw new Exception("Verification code has expired. Please request a new code.");
+            ctx.Db.PendingVerification.Delete(pending); // Clean up expired entry
+            throw new Exception("Verification code has expired. Please request a new one.");
         }
 
-        // Verify the code
-        if (pendingReg.VerificationCode != verificationCode)
+        // 3. Check Code Match
+        if (pending.VerificationCode != verificationCode)
         {
-            LogInfo(ctx, identity, "LoginAttemptFailed", "Invalid verification code");
-            Log.Info("Invalid verification code. Please try again.");
-            throw new Exception("Invalid verification code. Please try again.");
+            // Consider adding rate limiting or attempts logic here in a real app
+            throw new Exception("Invalid verification code.");
         }
 
-        // Find the user associated with this email
-        var user = ctx.Db.User.Identity.Find(identity);
+        // 4. Verification successful - Determine action: Register or Login
+        User? user = ctx.Db.User.Identity.Find(identity);
+
         if (user == null)
         {
-            // This should not happen since we checked in RequestLoginCode, but just in case
-            ctx.Db.PendingVerification.Delete(pendingReg);
-            LogInfo(ctx, identity, "LoginFailed", "User no longer exists");
-            Log.Info("Account not found. Please contact support.");
-            throw new Exception("Account not found. Please contact support.");
-        }
+            // --- COMPLETE REGISTRATION ---
+            // Double-check if email/username got taken *after* request but *before* verify (race condition)
+            if (string.IsNullOrEmpty(pending.Username))
+            {
+                // Should not happen if RequestVerification logic is correct
+                ctx.Db.PendingVerification.Delete(pending); // Clean up inconsistent state
+                throw new Exception("Internal error: Pending verification data incomplete for registration.");
+            }
 
-        // If the user's identity doesn't match the current sender,
-        // update the user record with the new identity
-        if (user.Identity != identity)
-        {
-            user.Identity = identity;
-            ctx.Db.User.Identity.Update(user);
-            LogInfo(ctx, identity, "UserIdentityUpdated",
-            $"User identity updated for {user.Email}");
-        }
+            if (ctx.Db.User.Iter().Any(u => u.Email == pending.Email) )
+            {
+                ctx.Db.PendingVerification.Delete(pending);
+                throw new Exception($"Email '{pending.Email}' was registered by someone else. Please try registering again.");
+            }
 
-        // Check for existing session and update it, or create a new one
-        var existingSession = ctx.Db.AuthSession.Identity.Find(identity);
-        if (existingSession != null)
-        {
-            existingSession.LastActiveTime = ctx.Timestamp;
-            existingSession.ActiveDeviceId = deviceId;
-            ctx.Db.AuthSession.Identity.Update(existingSession);
-        }
-        else
-        {
-            // Create new auth session
-            var authSession = new AuthSession
+            if (ctx.Db.User.Iter().Any(u => u.Username == pending.Username))
+            {
+                ctx.Db.PendingVerification.Delete(pending);
+                throw new Exception($"Username '{pending.Username}' was taken. Please try registering again with a different username.");
+            }
+
+
+            user = new User
+            {
+                Identity = identity,
+                Username = pending.Username, // Use stored username
+                Email = pending.Email, // Use stored email
+                Role = pending.Role, // Use stored role
+                IsEmailVerified = true, // Email is verified by this process
+                RegisteredAt = ctx.Timestamp
+            };
+            ctx.Db.User.Insert(user);
+            LogAuthAction(ctx, "UserRegistrationCompleted", $"User {user.Username} ({user.Email}) completed registration.");
+
+            // Create initial AuthSession
+            ctx.Db.AuthSession.Insert(new AuthSession
             {
                 Identity = identity,
                 LastActiveTime = ctx.Timestamp,
-                ActiveDeviceId = deviceId
-            };
-            ctx.Db.AuthSession.Insert(authSession);
+                ActiveDeviceId = deviceId ?? "unknown"
+            });
+            LogAuthAction(ctx, "SessionCreated", $"Initial session created for {user.Username}. Device: {deviceId ?? "unknown"}");
+        }
+        else
+        {
+            // --- COMPLETE LOGIN ---
+            // Sanity check: Ensure the email matches the logged-in user's email
+            if (user.Email != pending.Email)
+            {
+                // This implies the user somehow requested verification for one email
+                // while their identity is already linked to a different verified email.
+                ctx.Db.PendingVerification.Delete(pending); // Clean up
+                throw new Exception("Verification email does not match the email associated with your account.");
+            }
+
+            LogAuthAction(ctx, "UserLogin", $"User {user.Username} ({user.Email}) logged in.");
+
+            // Upsert AuthSession
+            var session = ctx.Db.AuthSession.Identity.Find(identity);
+            if (session != null)
+            {
+                session.LastActiveTime = ctx.Timestamp;
+                session.ActiveDeviceId = deviceId ?? "unknown";
+                ctx.Db.AuthSession.Identity.Update(session);
+                LogAuthAction(ctx, "SessionUpdated", $"Session updated for {user.Username}. Device: {deviceId ?? "unknown"}");
+            }
+            else
+            {
+                ctx.Db.AuthSession.Insert(new AuthSession
+                {
+                    Identity = identity,
+                    LastActiveTime = ctx.Timestamp,
+                    ActiveDeviceId = deviceId ?? "unknown"
+                });
+                LogAuthAction(ctx, "SessionCreated", $"New session created for {user.Username}. Device: {deviceId ?? "unknown"}");
+            }
         }
 
-        // Clean up the pending registration
-        ctx.Db.PendingVerification.Delete(pendingReg);
+        // 5. Clean up pending verification
+        ctx.Db.PendingVerification.Delete(pending);
 
-        LogInfo(ctx, identity, "UserLogin", $"User {user.Email} logged in successfully");
-        Log.Info("Login successful!");
+        // Success - Client state will update via subscriptions to User and AuthSession tables.
+        Log.Info($"Auth: Verification successful for Identity {identity}.");
     }
 
 
-    // ====================== User Management Reducers ======================
+    // ====================== User Management & Other Reducers (Minor Updates) ======================
 
-    /// <summary>
-    /// Get the current user's profile
-    /// </summary>
     [Reducer]
     public static void GetMyProfile(ReducerContext ctx)
     {
-        Identity identity = ctx.Sender;
-
-        var user = ctx.Db.User.Identity.Find(identity);
+        var user = ctx.Db.User.Identity.Find(ctx.Sender);
         if (user == null)
-            Log.Warn("Not authenticated. Please register first."); // TODO: Notify User
-
-        //TODO: Return user profile without sensitive data
+        {
+            // User not found, implies not logged in or registered.
+            // No action needed server-side, client subscription handles lack of data.
+            Log.Warn($"Auth: GetMyProfile called by unauthenticated Identity {ctx.Sender}.");
+            return; // Or throw if an error response is preferred client-side
+        }
+        // Data is available via client subscription to the User table.
+        // Log the access attempt if desired.
+        LogAuthAction(ctx, "GetMyProfile", $"User {user.Username} requested profile data.");
     }
 
-    /// <summary>
-    /// Update user profile
-    /// </summary>
     [Reducer]
-    public static void UpdateProfile(ReducerContext ctx, string email)
+    public static void UpdateProfile(ReducerContext ctx, string? newUsername, string? newEmail) // Allow updating either or both
     {
         Identity identity = ctx.Sender;
-
-        // Validate user is authenticated
-
         var user = ctx.Db.User.Identity.Find(identity);
 
+        if (user == null)
         {
-            if (user == null)
-                Log.Warn("Not authenticated. Please register first."); //TODO Notify User
+            throw new Exception("Not authenticated. Please login first.");
+        }
+
+        bool changed = false;
+        newEmail = newEmail?.ToLowerInvariant().Trim();
+
+        // --- Update Username ---
+        if (!string.IsNullOrWhiteSpace(newUsername) && user.Username != newUsername)
+        {
+            if (!IsValidUsername(newUsername))
+            {
+                throw new Exception("Invalid username format.");
+            }
+            // Check if NEW username is taken by ANY OTHER user
+            if (ctx.Db.User.Iter().Any(u => u.Identity != identity && u.Username == newUsername))
+            {
+                throw new Exception($"Username '{newUsername}' is already taken.");
+            }
+            user.Username = newUsername;
+            changed = true;
+            LogAuthAction(ctx, "UserProfileUpdated", $"Username changed to {newUsername}.");
+        }
+
+        // --- Update Email ---
+        if (!string.IsNullOrWhiteSpace(newEmail) && user.Email != newEmail)
+        {
+            if (!IsValidEmail(newEmail))
+            {
+                throw new Exception("Invalid email format.");
+            }
+            // Check if NEW email is taken by ANY OTHER user
+            if (ctx.Db.User.Iter().Any(u => u.Identity != identity && u.Email == newEmail))
+            {
+                throw new Exception($"Email '{newEmail}' is already registered to another account.");
+            }
+            user.Email = newEmail;
+            user.IsEmailVerified = false; // Require re-verification for new email
+            changed = true;
+            LogAuthAction(ctx, "UserProfileUpdated", $"Email changed to {newEmail}. Verification required.");
+            // TODO: Trigger a new verification email process for the new email?
+            // Could call RequestVerification internally, or instruct user to do so.
+            // For simplicity here, we just mark as unverified.
         }
 
 
+        if (changed)
         {
-            // Validate email
-            if (!IsValidEmail(email))
-                Log.Warn("Invalid email format.");
+            ctx.Db.User.Identity.Update(user);
+            Log.Info($"Auth: Profile updated for Identity {identity}.");
         }
-
-        // Check if email is already in use by another user
-        var emailExists = ctx.Db.User.Identity.Find(identity);
-
-        if (emailExists != null)
-            Log.Warn("Email already in use by another account.");
-
-        // Update user
-        user!.Email = email;
-        user.IsEmailVerified = false; // Require verification for new email
-
-        ctx.Db.User.Identity.Update(user);
-
-        LogInfo(ctx, identity, "UserProfileUpdated", $"User {user.Username} updated their profile");
-
-        // In a real app, you would send a verification email
-        Log.Info("Profile updated successfully. Please verify your new email.");
+        else
+        {
+            Log.Info($"Auth: UpdateProfile called for Identity {identity}, but no changes were made.");
+        }
     }
 
-    // ====================== Role-Specific Functionality ======================
+    // --- Role-Specific Reducers (Ensure correct role checks and Pk usage) ---
+    // Example: ListUsersByRole - No changes needed if logic was correct, just ensure Pk.Find is used.
 
-    /// <summary>
-    /// List all users with a specific role (only available to auditors)
-    /// </summary>
     [Reducer]
     public static void ListUsersByRole(ReducerContext ctx, int roleInt)
     {
-        Identity identity = ctx.Sender;
+        var callingUser = ctx.Db.User.Identity.Find(ctx.Sender); // Use Pk
 
-        // Check if user is authenticated and is an auditor
-        var user = ctx.Db.User.Identity.Find(identity);
+        if (callingUser == null)
+            throw new Exception("Not authenticated.");
 
-        if (user == null)
-            Log.Warn("Not authenticated. Please register first.");
+        // Example: Use specific roles for authorization
+        if (callingUser.Role != UserRole.Auditor && callingUser.Role != UserRole.Auditor)
+            throw new Exception("Access denied. Only Auditors or Auditors can list users.");
 
-        if (user!.Role != UserRole.Auditor)
-            Log.Error("Access denied. Only auditors can list users.");
-
-
-        // Validate role
         if (!Enum.IsDefined(typeof(UserRole), roleInt))
-            Log.Error("Invalid role specified.");
+            throw new Exception("Invalid role specified.");
 
         var role = (UserRole)roleInt;
 
-        LogInfo(ctx, identity, "UsersListed", $"Auditor {user.Username} listed users with role {role}");
+        // The actual listing happens via client subscription + filtering.
+        // This reducer mainly serves as an authorization gate and logs the action.
+        var userList = ctx.Db.User.Iter().Where(u => u.Role == role).Select(u => u.Username).ToList(); // Example server-side logic if needed
+
+        LogAuthAction(ctx, "UsersListedByRole", $"User {callingUser.Username} listed users with role {role}. Found: {userList.Count}");
     }
 
-    /// <summary>
-    /// Get audit logs (only available to auditors)
-    /// </summary>
     [Reducer]
-    public static void GetAuditLogs(ReducerContext ctx, long startTime, long endTime, int limit)
+    public static void GetAuditLogs(ReducerContext ctx, Timestamp startTime, Timestamp endTime, int limit) // Use Timestamp type
     {
-        Identity identity = ctx.Sender;
+        var callingUser = ctx.Db.User.Identity.Find(ctx.Sender); // Use Pk
 
-        // Check if user is authenticated and is an auditor
-        var user = ctx.Db.User.Identity.Find(identity);
-        if (user == null)
-            Log.Warn("Not authenticated. Please register first.");
+        if (callingUser == null)
+            throw new Exception("Not authenticated.");
 
-        if (user!.Role != UserRole.Auditor)
-            Log.Error("Access denied. Only auditors can access audit logs.");
+        if (callingUser.Role != UserRole.Auditor) // Only Auditors
+            throw new Exception("Access denied. Only auditors can access audit logs.");
 
-        // Validate input
         if (limit <= 0 || limit > 1000)
-            //TODO Return Error  if Greater Than
-            LogInfo(ctx, identity, "AuditLogsAccessed",
-            $"Auditor {user.Role} accessed audit logs from {startTime} to {endTime}");
-    }
-
-    // ====================== Utility Functions ======================
-
-    /// <summary>
-    /// Log an info message to the audit log
-    /// </summary>
-    private static void LogInfo(ReducerContext ctx, Identity identity, string action, string details)
-    {
-        var log = new AuditLog
         {
-            Identity = identity,
-            Action = action,
-            Details = details,
-            Timestamp = ctx.Timestamp
-        };
+            // Clamp limit or throw error
+            limit = Math.Clamp(limit, 1, 1000);
+            Log.Warn($"Auth: Audit log limit adjusted to {limit}.");
+            // Alternatively: throw new Exception("Limit must be between 1 and 1000.");
+        }
 
-        ctx.Db.AuditLog.Insert(log);
+        // Actual log retrieval happens via client subscription + filtering on AuditLog table.
+        // This reducer logs the access attempt.
+        var logsInRange = ctx.Db.AuditLog.Iter()
+            .Where(log => log.Timestamp.CompareTo(startTime) >= 0 && log.Timestamp.CompareTo(endTime) <= 0)
+            .OrderByDescending(log => log.Timestamp) // Example ordering
+            .Take(limit)
+            .ToList();
+
+
+        LogAuthAction(ctx, "AuditLogsAccessed", $"Auditor {callingUser.Username} accessed audit logs from {startTime} to {endTime} (Limit: {limit}). Found: {logsInRange.Count}");
     }
 
-    // ====================== Gamification API (Public Interface) ======================
-
-    // ... (other reducers) ...
-
-    // ... (other reducers) ...
-
-    /// <summary>
-    /// Get benefits within a certain radius of a user's location.
-    /// </summary>
+    // Placeholder for Benefits Module interaction (Unchanged)
     [Reducer]
     public static void GetBenefitsByLocation(ReducerContext ctx, double latitude, double longitude, double radiusKm)
     {
-        // TODO: Call the BenefitsModule to get benefits within the radius.
+        var user = ctx.Db.User.Identity.Find(ctx.Sender);
+        if (user == null)
+        {
+            throw new Exception("Authentication required to search for benefits.");
+        }
+        LogAuthAction(ctx, "BenefitSearchRequested", $"User {user.Username} searched benefits near ({latitude},{longitude}), radius {radiusKm}km.");
+        // TODO: Implement call to BenefitModule.QueryActiveBenefitsNearPoint(ctx, latitude, longitude, radiusKm);
+        // Note: Cross-module calls might require specific patterns depending on your setup.
     }
-
-    // ... (rest of the code) ...
-
 }
-
 }

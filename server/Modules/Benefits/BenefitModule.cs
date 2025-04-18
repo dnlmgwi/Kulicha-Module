@@ -187,7 +187,7 @@ public static partial class BenefitModule {
             throw new Exception($"Cannot delete location {locationId}: It is mapped to {dependentMaps.Count} benefits. Unmap them first.");
         }
 
-        string? locationName = location.Name; // Capture name before potential deletion
+        string locationName = location.Name; // Capture name before potential deletion
         LogBenefitAction(ctx, user!.Identity.ToString(), "LocationDeleted", $"Deleted Location ID: {locationId} - {locationName}");
         ctx.Db.BenefitLocation.LocationId.Delete(locationId);
     }
@@ -311,7 +311,7 @@ public static partial class BenefitModule {
             }
         }
 
-        string? benefitName = benefit.Name; // Capture name before potential deletion
+        string benefitName = benefit.Name; // Capture name before potential deletion
         LogBenefitAction(ctx, user!.Identity.ToString(), "BenefitDeleted", $"Deleted Benefit ID: {benefitId} - {benefitName}");
         ctx.Db.BenefitDefinition.BenefitId.Delete(benefitId);
     }
