@@ -11,11 +11,13 @@ public static partial class BenefitModule {
         if (user == null)
         {
             Log.Warn($"BenefitModule: Unauthenticated access attempt by {ctx.Sender}.");
+            LogBenefitAction(ctx, user!.Identity.ToString(), "Unauthenticated access", $"Unauthenticated access attempt by {ctx.Sender}.");
             return false;
         }
         if (!requiredRoles.Contains(user.Role))
         {
             Log.Warn($"BenefitModule: User {user.Username} ({user.Role}) attempted action requiring roles: {string.Join(", ", requiredRoles)}.");
+            LogBenefitAction(ctx, user!.Identity.ToString(), "Privileged access", $"User {user.Username} ({user.Role}) attempted action requiring roles: {string.Join(", ", requiredRoles)}.");
             return false;
         }
         return true;
