@@ -1,16 +1,18 @@
-@using LeafletForBlazor
 @page "/home"
 @layout MainLayout
 @using System.ComponentModel.DataAnnotations
+@using Kulicha.Components.Layout
 @using SpacetimeDB
 @using SpacetimeDB.Types
 @rendermode InteractiveServer
 @using Kulicha.Services
 @using Microsoft.Extensions.Logging
+@using LeafletForBlazor
 @inject SpacetimeDbService SpacetimeService
 @inject IJSRuntime JSRuntime
 @inject ILogger<Auth> Logger
 @inject NavigationManager NavigationManager
+@using LeafletForBlazor
 
 
 <div class="min-h-screen bg-gray-100 flex">
@@ -18,10 +20,9 @@
         <div class="py-12">
             <div>
                 <Map @ref="_map" Width="100%" Height="100%" Center="@_mapCenter" Zoom="@_zoomLevel">
-                    <Marker Position="@_markerPosition" />
                     <TileLayer Url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" Attribution="&copy; <a href=&quot;https://www.openstreetmap.org/copyright&quot;>OpenStreetMap</a> contributors"/>
                 </Map>
-                
+
 
             </div>
         </div>
@@ -31,15 +32,15 @@
     // Use a boolean flag to control form visibility instead of enum
     private bool IsVerifyingLogin { get; set; } = false;
     private Map _map;
-    private LeafletForBlazor.LatLng _mapCenter { get; set; } = new LeafletForBlazor.LatLng
+    private LeafletForBlazor.Point _mapCenter { get; set; } = new LeafletForBlazor.Point
     {
         Latitude = 44.4501715,
         Longitude = 26.1107672
     };
     private int _zoomLevel = 18;
-    private LatLng _markerPosition;
+    private Marker marker;
     protected override async Task OnAfterRenderAsync(bool firstRender)
-    {   
+    {
         await base.OnAfterRenderAsync(firstRender);
     };
 
@@ -79,11 +80,10 @@
         Random random = new Random();
         double randomLat = _mapCenter.Latitude + (random.NextDouble() - 0.5) * 0.1; // Adding up to +/- 0.1 to the latitude
         double randomLng = _mapCenter.Longitude + (random.NextDouble() - 0.5) * 0.1; // Adding up to +/- 0.1 to the longitude
-        _markerPosition = new LatLng { Latitude = randomLat, Longitude = randomLng };
-        
-        
+        marker = new Marker(new LeafletForBlazor.Point { Latitude = randomLat, Longitude = randomLng });
 
-        
+
+
 // Subscribe to events
         SpacetimeService.OnConnect += HandleConnectionChange;
         SpacetimeService.OnDisconnect += HandleConnectionChange;
@@ -95,7 +95,12 @@
         HandleConnectionChange(); // This calls StateHasChanged internally
 
 
-        
+
+        if (_map != null)
+        {
+            await _map.AddMarker(marker);
+        }
+
         await base.OnInitializedAsync(); // Ensure base method is called
     }
 
@@ -257,8 +262,7 @@
     public void Dispose()
     {
 // Unsubscribe from events to prevent memory leaks
-         SpacetimeService.OnConnect -= HandleConnectionChange;
-        private LatLng _markerPosition;
+        SpacetimeService.OnConnect -= HandleConnectionChange;
         SpacetimeService.OnDisconnect -= HandleConnectionChange;
         SpacetimeService.OnIdentityReceived -= HandleIdentityReceived;
         SpacetimeService.OnProfileReceived -= HandleProfileReceived;
