@@ -1,0 +1,38 @@
+razor
+@namespace Kulicha.Components
+@using Kulicha.Components.RealTimeMap
+
+<div style="height: @height; width: @width;">
+</div>
+
+@code {
+    [Parameter]
+    public LoadParameters Parameters { get; set; }
+
+    [Parameter]
+    public MapOptions Options { get; set; }
+
+    [Parameter]
+    public string height { get; set; }
+
+    [Parameter]
+    public string width { get; set; }
+
+    public View View
+    {
+        get => _view;
+        set
+        {
+            if (value != null)
+            {
+                _view.setZoomLevel = value.setZoomLevel;
+                _view.setMinZoomLevel = value.setMinZoomLevel;
+                _view.setMaxZoomLevel = value.setMaxZoomLevel;
+                _view.setCenter = value.setCenter;
+                _view.setBounds = value.setBounds;
+            }
+        }
+    }
+
+    private View _view = new View();
+}
