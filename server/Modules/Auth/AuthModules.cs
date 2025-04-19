@@ -40,7 +40,7 @@ public static partial class AuthModule {
     [Reducer(ReducerKind.ClientConnected)]
     public static void ClientConnected(ReducerContext ctx)
     {
-        var user = ctx.Db.User.Identity.Find(ctx.Sender); // Use Pk for Identity lookup
+        var user = ctx.Db.User.Identity.Find(ctx.Sender);
         if (user != null)
         {
             LogAuthAction(ctx, "UserConnected", $"User {user.Username} connected.");
@@ -374,9 +374,6 @@ public static partial class AuthModule {
         }
     }
 
-    // --- Role-Specific Reducers (Ensure correct role checks and Pk usage) ---
-    // Example: ListUsersByRole - No changes needed if logic was correct, just ensure Pk.Find is used.
-
     [Reducer]
     public static void ListUsersByRole(ReducerContext ctx, int roleInt)
     {
@@ -430,20 +427,6 @@ public static partial class AuthModule {
 
 
         LogAuthAction(ctx, "AuditLogsAccessed", $"Auditor {callingUser.Username} accessed audit logs from {startTime} to {endTime} (Limit: {limit}). Found: {logsInRange.Count}");
-    }
-
-    // Placeholder for Benefits Module interaction (Unchanged)
-    [Reducer]
-    public static void GetBenefitsByLocation(ReducerContext ctx, double latitude, double longitude, double radiusKm)
-    {
-        var user = ctx.Db.User.Identity.Find(ctx.Sender);
-        if (user == null)
-        {
-            throw new Exception("Authentication required to search for benefits.");
-        }
-        LogAuthAction(ctx, "BenefitSearchRequested", $"User {user.Username} searched benefits near ({latitude},{longitude}), radius {radiusKm}km.");
-        // TODO: Implement call to BenefitModule.QueryActiveBenefitsNearPoint(ctx, latitude, longitude, radiusKm);
-        // Note: Cross-module calls might require specific patterns depending on your setup.
     }
 }
 }
