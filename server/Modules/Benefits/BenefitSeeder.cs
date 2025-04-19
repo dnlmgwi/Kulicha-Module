@@ -1,4 +1,4 @@
-namespace Server.Modules.Benefits {
+namespace ServerModule.Modules.Benefits {
 using Enums;
 using SpacetimeDB;
 

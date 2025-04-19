@@ -1,6 +1,6 @@
 using SpacetimeDB;
 
-namespace Server {
+namespace ServerModule {
 using Enums;
 // ====================== Database Table Definitions ======================
 
@@ -11,11 +11,9 @@ using Enums;
 public partial class User {
     [PrimaryKey]
     public Identity Identity;
-    [Unique]
     public string Username = "";
-    [Unique]
     public string Email = "";
-    public UserRole Role { get; init; }
+    public UserRole Role { get; set; }
     public bool IsEmailVerified;
     public Timestamp RegisteredAt;
 }
@@ -30,7 +28,7 @@ public partial class PendingVerification {
 
     public string? Username;
     public string? Email;
-    public UserRole Role { get; init; }
+    public UserRole Role { get; set; }
     public string? VerificationCode;
 
     public Timestamp ExpiresAt;

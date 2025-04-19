@@ -251,7 +251,7 @@ public class SpacetimeDbService : IHostedService, IDisposable {
     /// Requests a login verification code for an existing user's email
     /// </summary>
     /// <param name="email">The email address to send the verification code to</param>
-    public async void RequestLoginCode(string email, bool isRegistration)
+    public async void RequestLoginCode(string email)
     {
         // If not connected, attempt to establish connection first
         if (!_isConnected || _conn == null)

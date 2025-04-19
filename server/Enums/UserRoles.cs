@@ -1,4 +1,4 @@
-namespace Server.Enums {
+namespace ServerModule.Enums {
 /// <summary>
 /// Enum defining the three roles in our system
 /// </summary>

@@ -1,4 +1,4 @@
-namespace Server.Enums {
+namespace ServerModule.Enums {
 /// <summary>
 /// Enum defining benefit types
 /// </summary>
