@@ -11,10 +11,6 @@
       <PackageReference Include="SpacetimeDB.ClientSDK" Version="1.0.2" />
       <PackageReference Include="SpacetimeDB.Runtime" Version="1.0.1" />
     </ItemGroup>
-
-    <ItemGroup>
-      <Folder Include="module_bindings\" />
-    </ItemGroup>
 <!--    <ItemGroup>-->
 <!--        <Watch Include="./styles/tailwind.css" Exclude="./wwwroot/**/*;obj\**\*;bin\**\*" />-->
 <!--    </ItemGroup>-->

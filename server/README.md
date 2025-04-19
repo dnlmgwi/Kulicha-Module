@@ -20,7 +20,7 @@ spacetime build
 
 Publish Module to local instance
 ```bash
-spacetime publish --project-path  ~/RiderProjects/Kulicha/server kulicha --server local
+spacetime publish --project-path  ~/RiderProjects/Kulicha/Server kulicha --server local
 ```
 
 ```bash
